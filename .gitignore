@@ -13,3 +13,6 @@ tools/var-catalog/dist/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# 生成物：原型用的变量数据（用 tools/var-catalog 生成）
+docs/prototype/variables.js

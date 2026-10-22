@@ -17,6 +17,7 @@ node tools/var-catalog/index.mjs build
 node tools/var-catalog/index.mjs serve      # http://127.0.0.1:4848
 
 # 2. 交互原型（不装 VS Code 也能看）
+node tools/var-catalog/index.mjs build --prototype docs/prototype/variables.js
 start docs\prototype\presets-editor.html
 
 # 3. 扩展：构建 / 测试 / 打包安装
@@ -39,3 +40,11 @@ code --install-extension build\cmake-presets-editor.vsix --force
 - [需求与开发方案](docs/CMakePresets-可视化编辑器-开发方案.md)（含工时、风险、验收标准）
 - [变量目录工具](tools/var-catalog/README.md)
 - [扩展说明](extension/README.md)
+
+## 截图
+
+扩展界面颜色取自 VS Code 主题变量，浅色 / 深色自动适配：
+
+| 浅色 | 深色 |
+|---|---|
+| ![浅色主题](docs/prototype/theme-light.png) | ![深色主题](docs/prototype/theme-dark.png) |
