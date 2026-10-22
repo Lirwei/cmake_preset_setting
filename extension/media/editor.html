@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CMake Presets 编辑器</title>
+<style>
+  :root{
+    --bg:#1e1e1e; --side:#252526; --panel:#1e1e1e; --border:#333;
+    --text:#d4d4d4; --muted:#9d9d9d; --accent:#007acc; --sel:#094771;
+    --input:#3c3c3c; --btn:#3a3d41; --err:#f14c4c; --warn:#cca700; --info:#3794ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
+       font:13px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  #app{display:flex;flex-direction:column;height:100%}
+  #topbar{display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--side);
+          border-bottom:1px solid var(--border);flex:0 0 auto}
+  #topbar .file{font-weight:600;letter-spacing:.2px}
+  #topbar .note{color:var(--muted);font-size:12px}
+  #topbar .spacer{flex:1}
+  button{font:inherit;color:#ccc;background:var(--btn);border:1px solid #4b4b4b;border-radius:3px;
+         padding:3px 9px;cursor:pointer;white-space:nowrap}
+  button:hover{background:#45494e}
+  button.primary{background:#0e639c;border-color:#0e639c;color:#fff}
+  button.primary:hover{background:#1177bb}
+  input,select{font:inherit;color:#ddd;background:var(--input);border:1px solid var(--input);
+               border-radius:2px;padding:3px 6px;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  input:disabled,select:disabled{opacity:.5;cursor:not-allowed}
+  input[type=checkbox]{width:auto}
+  #main{flex:1;display:grid;grid-template-columns:272px minmax(420px,1fr) minmax(360px,440px);min-height:0}
+  #sidebar{background:var(--side);border-right:1px solid #2b2b2b;display:flex;flex-direction:column;min-height:0}
+  .side-head{padding:8px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #2b2b2b}
+  .side-head input{flex:1 1 100%;margin-bottom:2px}
+  .side-head button{flex:1}
+  #tree{flex:1;overflow:auto;padding:4px 0}
+  .tree-group{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+              padding:10px 12px 4px;display:flex;align-items:center;gap:6px}
+  .tree-group .count{background:#3a3d41;border-radius:8px;padding:0 6px;font-size:10px;color:#bbb}
+  .tree-item{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 16px;cursor:pointer;
+             position:relative;border-left:2px solid transparent}
+  .tree-item:hover{background:#2a2d2e}
+  .tree-item.sel{background:var(--sel);border-left-color:var(--accent)}
+  .tree-item .label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .dot.configure{background:#4ec9b0}
+  .dot.build{background:#dcdcaa}
+  .badge{font-size:10px;background:#4d4d4d;color:#ccc;border-radius:3px;padding:0 4px}
+  .tree-item .acts{display:none;gap:2px}
+  .tree-item:hover .acts,.tree-item.sel .acts{display:flex}
+  .tree-item .acts button{padding:0 4px;background:transparent;border:none;color:#bbb;font-size:12px}
+  .tree-item .acts button:hover{color:#fff}
+  .side-foot{padding:8px 12px;border-top:1px solid #2b2b2b;color:#6d6d6d;font-size:11px}
+  #editor{overflow:auto;min-height:0;padding:0 0 40px}
+  #right{display:flex;flex-direction:column;min-height:0;border-left:1px solid #2b2b2b}
+  .panel-title{padding:7px 12px;background:var(--side);border-bottom:1px solid var(--border);
+               color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+               display:flex;justify-content:space-between;align-items:center}
+  #json{flex:1;min-height:0;margin:0;padding:10px 14px;overflow:auto;font:12px/1.5 Consolas,"Cascadia Mono",monospace;
+        color:#cecece;background:#181818;white-space:pre;tab-size:4}
+  #json.flash{animation:flash .9s ease}
+  @keyframes flash{0%{background:#1d3557}100%{background:#181818}}
+  #issues-wrap{border-top:1px solid var(--border);max-height:42%;display:flex;flex-direction:column}
+  #issues{overflow:auto;padding:6px 0}
+  .issue{display:flex;gap:8px;padding:5px 12px;cursor:pointer;line-height:1.45}
+  .issue:hover{background:#2a2d2e}
+  .issue .lv{flex:0 0 auto;width:14px;text-align:center;font-weight:700}
+  .issue.error .lv{color:var(--err)}
+  .issue.warn .lv{color:var(--warn)}
+  .issue.info .lv{color:var(--info)}
+  .issue.ok{color:#89d185;cursor:default}
+  .crumbs{padding:12px 20px 0;color:var(--muted);font-size:12px;display:flex;gap:8px;align-items:center}
+  .crumbs .ver{margin-left:auto;background:#3a3d41;border-radius:3px;padding:1px 7px;color:#bbb}
+  #form h2{margin:6px 20px 14px;font-size:17px;font-weight:600;display:flex;gap:8px;align-items:center}
+  .group{margin:0 20px 16px;border:1px solid #2d2d2d;border-radius:4px;overflow:hidden;background:#232323}
+  .group>header{display:flex;align-items:center;justify-content:space-between;
+                padding:6px 12px;background:#2a2a2a;border-bottom:1px solid #2d2d2d}
+  .group>header h3{margin:0;font-size:12px;font-weight:600;color:#c8c8c8;letter-spacing:.3px}
+  .rows{padding:12px}
+  .row{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:start;margin-bottom:9px}
+  .row:last-child{margin-bottom:0}
+  .row>label{color:#b9b9b9;padding-top:3px;font-size:12px}
+  .hint{color:#7d7d7d;font-size:11px;margin-top:3px}
+  .hint.strong{color:var(--warn)}
+  table.vars{width:100%;border-collapse:collapse}
+  table.vars th{text-align:left;font-weight:500;color:#8f8f8f;font-size:11px;padding:0 4px 5px}
+  table.vars td{padding:2px 4px}
+  table.vars td.x{width:26px;text-align:center}
+  table.vars td.x button{background:transparent;border:none;color:#888;padding:0 4px;font-size:13px}
+  table.vars td.x button:hover{color:var(--err)}
+  .addrow{margin-top:8px}
+  .empty{padding:60px 30px;text-align:center;color:var(--muted)}
+  .empty span{font-size:12px;color:#707070}
+  .eff{display:grid;grid-template-columns:1fr;gap:2px}
+  .eff-row{display:flex;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px dashed #2f2f2f}
+  .eff-row:last-child{border-bottom:none}
+  .eff-row .k{width:150px;color:#8fbcd4;font-family:Consolas,monospace;font-size:12px}
+  .eff-row .v{flex:1;font-family:Consolas,monospace;font-size:12px;word-break:break-all}
+  .eff-row .src{color:#7a7a7a;font-size:11px;white-space:nowrap}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:#3a3d41;
+         color:#fff;padding:7px 14px;border-radius:4px;opacity:0;pointer-events:none;
+         transition:.18s;box-shadow:0 3px 10px rgba(0,0,0,.4);z-index:9}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  .dirty{width:7px;height:7px;border-radius:50%;background:#e2c08d;display:none}
+  .dirty.on{display:inline-block}
+  #suggest{position:fixed;z-index:20;display:none;background:#252526;border:1px solid #4b4b4b;
+           border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.55);max-height:280px;overflow:auto}
+  #suggest.on{display:block}
+  #suggest .sg{display:flex;align-items:baseline;gap:8px;padding:4px 10px;cursor:pointer}
+  #suggest .sg.act{background:var(--sel)}
+  #suggest .sg .n{font-family:Consolas,monospace;font-size:12px;color:#dcdcaa;white-space:nowrap}
+  #suggest .sg .t{font-size:10px;color:#4ec9b0;border:1px solid #3f5f57;border-radius:3px;padding:0 4px;white-space:nowrap}
+  #suggest .sg .d{flex:1;color:#9d9d9d;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <span class="file" id="file-name">CMakePresets.json</span>
+    <span class="dirty" id="dirty" title="未保存"></span>
+    <select id="version" style="width:auto" title="preset 版本">
+      <option>7</option><option>8</option><option>9</option>
+      <option>10</option><option>11</option><option>12</option>
+    </select>
+    <span class="note" id="parse-error" style="display:none;color:#f14c4c"></span>
+    <span class="spacer"></span>
+    <button id="btn-validate">校验</button>
+    <button id="btn-json">在 JSON 中打开</button>
+    <button id="btn-save" class="primary">保存</button>
+  </header>
+  <main id="main">
+    <aside id="sidebar">
+      <div class="side-head">
+        <input id="search" placeholder="搜索预设…">
+        <button id="add-configure">+ 配置预设</button>
+        <button id="add-build">+ 构建预设</button>
+      </div>
+      <div id="tree"></div>
+      <div class="side-foot">点击预设编辑 · 悬停行可复制/删除 · 输入 CMAKE_ 补全变量</div>
+    </aside>
+    <section id="editor">
+      <div id="form"></div>
+      <div id="effective"></div>
+    </section>
+    <section id="right">
+      <div class="panel-title"><span>JSON 预览</span><span>只读</span></div>
+      <pre id="json"></pre>
+      <div id="issues-wrap">
+        <div class="panel-title"><span>问题</span><span id="issue-count"></span></div>
+        <div id="issues"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+<div id="suggest"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KINDS = { configure: '配置预设', build: '构建预设' };
+  var ARRAYS = { configure: 'configurePresets', build: 'buildPresets' };
+  var GENERATORS = [
+    'Visual Studio 18 2026', 'Visual Studio 17 2022', 'Visual Studio 16 2019',
+    'Ninja', 'Ninja Multi-Config', 'Unix Makefiles', 'MinGW Makefiles'
+  ];
+  var ARCHS = ['x64', 'Win32', 'ARM', 'ARM64'];
+  var CFG_TYPES = ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel'];
+  var VAR_TYPES = ['', 'BOOL', 'STRING', 'PATH', 'FILEPATH', 'INTERNAL'];
+
+  // 兜底目录：variables.js 缺失时也能演示（真实数据由 tools/var-catalog 生成）
+  var FALLBACK_CATALOG = [
+    { name: 'CMAKE_BUILD_TYPE', type: 'STRING', values: ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel'], desc: '单配置生成器的构建类型', hot: true },
+    { name: 'CMAKE_INSTALL_PREFIX', type: 'PATH', desc: '安装根目录（CMAKE_INSTALL_PREFIX）', hot: true },
+    { name: 'CMAKE_TOOLCHAIN_FILE', type: 'FILEPATH', desc: '工具链文件路径', hot: true },
+    { name: 'CMAKE_CXX_STANDARD', type: 'STRING', values: ['98', '11', '14', '17', '20', '23', '26'], desc: 'C++ 标准版本', hot: true },
+    { name: 'CMAKE_CXX_STANDARD_REQUIRED', type: 'BOOL', desc: '要求标准版本精确匹配', hot: true },
+    { name: 'CMAKE_EXPORT_COMPILE_COMMANDS', type: 'BOOL', desc: '导出 compile_commands.json（clangd 用）', hot: true },
+    { name: 'CMAKE_PREFIX_PATH', type: 'PATH', desc: 'find_package 的依赖搜索前缀', hot: true },
+    { name: 'CMAKE_C_COMPILER', type: 'FILEPATH', desc: 'C 编译器路径', hot: true },
+    { name: 'CMAKE_CXX_COMPILER', type: 'FILEPATH', desc: 'C++ 编译器路径', hot: true },
+    { name: 'BUILD_SHARED_LIBS', type: 'BOOL', desc: '默认构建动态库', hot: true },
+    { name: 'CMAKE_MSVC_RUNTIME_LIBRARY', type: 'STRING', values: ['MultiThreaded', 'MultiThreadedDLL', 'MultiThreadedDebug', 'MultiThreadedDebugDLL'], desc: 'MSVC 运行库选择', hot: true },
+    { name: 'CMAKE_POSITION_INDEPENDENT_CODE', type: 'BOOL', desc: '生成位置无关代码（-fPIC）', hot: true },
+    { name: 'CMAKE_CXX_EXTENSIONS', type: 'BOOL', desc: '允许 C++ 编译器扩展' },
+    { name: 'CMAKE_C_FLAGS', type: 'STRING', desc: '全局 C 编译选项' },
+    { name: 'CMAKE_CXX_FLAGS', type: 'STRING', desc: '全局 C++ 编译选项' },
+    { name: 'CMAKE_C_COMPILER_LAUNCHER', type: 'STRING', values: ['ccache', 'sccache'], desc: '编译缓存工具' },
+    { name: 'CMAKE_CXX_COMPILER_LAUNCHER', type: 'STRING', values: ['ccache', 'sccache'], desc: '编译缓存工具' },
+    { name: 'CMAKE_DEBUG_POSTFIX', type: 'STRING', desc: 'Debug 配置的库名后缀（如 d）' },
+    { name: 'CMAKE_RUNTIME_OUTPUT_DIRECTORY', type: 'PATH', desc: '可执行文件输出目录' },
+    { name: 'CMAKE_LIBRARY_OUTPUT_DIRECTORY', type: 'PATH', desc: '动态库输出目录' },
+    { name: 'CMAKE_ARCHIVE_OUTPUT_DIRECTORY', type: 'PATH', desc: '静态库输出目录' },
+    { name: 'CMAKE_MODULE_PATH', type: 'PATH', desc: 'FindXXX.cmake 的额外搜索路径' },
+    { name: 'CMAKE_SYSROOT', type: 'PATH', desc: '交叉编译 sysroot' },
+    { name: 'CMAKE_OSX_ARCHITECTURES', type: 'STRING', desc: 'macOS 目标架构（arm64;x86_64）' },
+    { name: 'CMAKE_CUDA_ARCHITECTURES', type: 'STRING', desc: 'CUDA 目标架构（如 75;86）' },
+    { name: 'CMAKE_UNITY_BUILD', type: 'BOOL', desc: '合并编译单元以加速构建' },
+    { name: 'CMAKE_AUTOMOC', type: 'BOOL', desc: '自动运行 moc（Qt）' },
+    { name: 'CMAKE_AUTOUIC', type: 'BOOL', desc: '自动运行 uic（Qt）' },
+    { name: 'CMAKE_AUTORCC', type: 'BOOL', desc: '自动运行 rcc（Qt）' },
+    { name: 'CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS', type: 'BOOL', desc: '自动导出 DLL 符号' },
+    { name: 'CMAKE_VERBOSE_MAKEFILE', type: 'BOOL', desc: '显示完整编译命令' },
+    { name: 'CMAKE_POLICY_VERSION_MINIMUM', type: 'STRING', desc: 'CMake 4.x 兼容旧工程的最小策略版本' },
+    { name: 'CMAKE_COMPILE_WARNING_AS_ERROR', type: 'BOOL', desc: '把编译警告当作错误' },
+    { name: 'CMAKE_INTERPROCEDURAL_OPTIMIZATION', type: 'BOOL', desc: '链接时优化（LTO）' },
+    { name: 'CMAKE_VISIBILITY_INLINES_HIDDEN', type: 'BOOL', desc: '隐藏内联函数符号' },
+    { name: 'CMAKE_CXX_VISIBILITY_PRESET', type: 'STRING', values: ['default', 'hidden'], desc: '符号可见性预设' },
+    { name: 'CMAKE_GENERATOR_PLATFORM', type: 'STRING', desc: '架构平台（建议改用预设的 architecture 字段）' },
+    { name: 'CMAKE_GENERATOR_TOOLSET', type: 'STRING', desc: '工具集（建议改用预设的 toolset 字段）' },
+    { name: 'CMAKE_MAKE_PROGRAM', type: 'FILEPATH', desc: '构建工具路径（ninja/make）' }
+  ];
+
+  // 优先加载 tools/var-catalog 生成的完整目录（docs/prototype/variables.js）
+  var VAR_CATALOG = (function () {
+    var data = (typeof window !== 'undefined' && window.CMAKE_VARIABLES) || null;
+    if (!Array.isArray(data) || !data.length) return FALLBACK_CATALOG;
+    return data.map(function (v) {
+      var desc = v.desc || '';
+      if (v.preferField) desc = '改用预设字段 ' + v.preferField + '：' + desc;
+      return {
+        name: v.name,
+        type: v.type || '',
+        values: v.values || [],
+        desc: desc,
+        hot: !!v.hot
+      };
+    });
+  })();
+
+  // 项目自定义变量：真实扩展从 CMakeLists.txt 的 set(... CACHE ...) / option() 扫描，或读 CMakeCache.txt
+  var PROJECT_VARS = [
+    { name: 'LIBRARIES_DIR', type: 'PATH', desc: '项目自定义：库搜索目录' },
+    { name: 'APP_LANGUAGE', type: 'STRING', values: ['CH', 'EN'], desc: '项目自定义：界面语言' }
+  ];
+
+  var initialData = { version: 7, configurePresets: [], buildPresets: [] };
+
+  var state = {
+    data: JSON.parse(JSON.stringify(initialData)),
+    sel: { kind: 'configure', index: 0 },
+    search: '',
+    dirty: false
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------- VS Code 桥 ---------------- */
+  var vscode = acquireVsCodeApi();
+  var pendingOps = [];
+  var flushTimer = null;
+  var beforeSnapshot = null;
+  var parseBroken = false;
+
+  function diffModel(before, after, base) {
+    base = base || [];
+    if (before === after) return [];
+    var beforeIsArray = Array.isArray(before);
+    var afterIsArray = Array.isArray(after);
+    if (beforeIsArray !== afterIsArray) return [{ path: base, value: after }];
+    if (beforeIsArray) {
+      if (before.length !== after.length) return [{ path: base, value: after }];
+      var arrOps = [];
+      for (var i = 0; i < after.length; i++) arrOps = arrOps.concat(diffModel(before[i], after[i], base.concat(i)));
+      return arrOps;
+    }
+    var beforeIsObject = before !== null && typeof before === 'object';
+    var afterIsObject = after !== null && typeof after === 'object';
+    if (!beforeIsObject || !afterIsObject) return [{ path: base, value: after }];
+    var ops = [];
+    var keys = Object.keys(after);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      if (!(key in before)) ops.push({ path: base.concat(key), value: after[key] });
+      else ops = ops.concat(diffModel(before[key], after[key], base.concat(key)));
+    }
+    var oldKeys = Object.keys(before);
+    for (var j = 0; j < oldKeys.length; j++) {
+      if (!(oldKeys[j] in after)) ops.push({ path: base.concat(oldKeys[j]), remove: true });
+    }
+    return ops;
+  }
+
+  function post(ops) {
+    if (!ops || !ops.length) return;
+    pendingOps = pendingOps.concat(ops);
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(flush, 350);
+  }
+  function flush() {
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    if (!pendingOps.length) return;
+    // 同一路径的连续修改只保留最后一次，避免逐字输入产生一串冗余 op
+    var merged = [];
+    var index = {};
+    for (var i = 0; i < pendingOps.length; i++) {
+      var op = pendingOps[i];
+      var key = op.path.join('\u0001') + (op.remove ? '!' : '');
+      if (key in index) merged[index[key]] = op;
+      else { index[key] = merged.length; merged.push(op); }
+    }
+    pendingOps = [];
+    vscode.postMessage({ type: 'apply', ops: merged });
+  }
+  function beginEdit() {
+    if (parseBroken) return false;
+    beforeSnapshot = JSON.parse(JSON.stringify(state.data));
+    return true;
+  }
+  function commitDiff() {
+    if (!beforeSnapshot) return;
+    var before = beforeSnapshot;
+    beforeSnapshot = null;
+    post(diffModel(before, state.data));
+  }
+  function commitOps(ops) {
+    beforeSnapshot = null;
+    post(ops);
+  }
+
+  function applyDocument(msg) {
+    var parsed;
+    try {
+      parsed = JSON.parse(msg.text);
+    } catch (err) {
+      parseBroken = true;
+      var bar = document.getElementById('parse-error');
+      bar.style.display = 'inline';
+      bar.textContent = 'JSON 语法错误：' + err.message + ' —— 请用「在 JSON 中打开」修复';
+      document.getElementById('form').innerHTML =
+        '<div class="empty">文件不是合法 JSON<br><span>修好之后切回来，编辑器会自动恢复</span></div>';
+      document.getElementById('effective').innerHTML = '';
+      return;
+    }
+    parseBroken = false;
+    var bar2 = document.getElementById('parse-error');
+    if (bar2) { bar2.style.display = 'none'; bar2.textContent = ''; }
+
+    var prev = cur();
+    var prevName = prev && prev.name;
+    state.data = parsed;
+    if (typeof msg.version === 'number') state.version = msg.version;
+    if (msg.fileName) {
+      state.fileName = msg.fileName;
+      var nameEl = document.getElementById('file-name');
+      if (nameEl) nameEl.textContent = msg.fileName;
+    }
+    if (Array.isArray(msg.catalog) && msg.catalog.length) VAR_CATALOG = msg.catalog;
+    if (Array.isArray(msg.generators) && msg.generators.length) GENERATORS = msg.generators;
+
+    var list = listOf(state.sel.kind);
+    if (state.sel.index >= list.length) state.sel.index = Math.max(0, list.length - 1);
+    if (prevName) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].name === prevName) { state.sel.index = i; break; }
+      }
+    }
+    var vsel = document.getElementById('version');
+    if (vsel) vsel.value = String(state.data.version || 7);
+    document.getElementById('dirty').classList.toggle('on', !!msg.isDirty);
+    renderAll();
+  }
+
+  window.addEventListener('message', function (event) {
+    var msg = event.data || {};
+    if (msg.type === 'init' || msg.type === 'update') applyDocument(msg);
+    else if (msg.type === 'state') document.getElementById('dirty').classList.toggle('on', !!msg.isDirty);
+    else if (msg.type === 'error') toast('操作失败：' + msg.message);
+  });
+
+  function esc(s) {
+    return String(s === undefined || s === null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function listOf(kind) { return state.data[ARRAYS[kind]] || (state.data[ARRAYS[kind]] = []); }
+  function cur() {
+    var list = listOf(state.sel.kind);
+    return list[state.sel.index];
+  }
+  function findIn(kind, name) {
+    return listOf(kind).filter(function (p) { return p.name === name; })[0];
+  }
+  function presetPath() { return '/' + ARRAYS[state.sel.kind] + '/' + state.sel.index; }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------------- 变量补全（缓存变量名 / 取值） ---------------- */
+
+  var suggest = { open: false, items: [], idx: -1, target: null, mode: 'name' };
+
+  function findVar(name) {
+    for (var i = 0; i < VAR_CATALOG.length; i++) {
+      if (VAR_CATALOG[i].name === name) return VAR_CATALOG[i];
+    }
+    return null;
+  }
+  function findProjectVar(name) {
+    for (var i = 0; i < PROJECT_VARS.length; i++) {
+      if (PROJECT_VARS[i].name === name) return PROJECT_VARS[i];
+    }
+    return null;
+  }
+  function usedVars() {
+    var used = {};
+    (state.data.configurePresets || []).forEach(function (pp) {
+      Object.keys(pp.cacheVariables || {}).forEach(function (k) { used[k] = true; });
+    });
+    return used;
+  }
+  function nameSuggestions(query) {
+    var q = query.toUpperCase();
+    var used = usedVars();
+    var out = [], seen = {};
+    function push(name, type, desc) {
+      if (!name || seen[name]) return;
+      seen[name] = true;
+      out.push({ label: name, type: type || '', desc: desc || '' });
+    }
+    VAR_CATALOG.filter(function (v) { return v.hot; })
+      .forEach(function (v) { push(v.name, v.type, v.desc); });
+    PROJECT_VARS.forEach(function (v) { push(v.name, v.type, v.desc); });
+    Object.keys(used).forEach(function (k) {
+      var meta = findVar(k) || findProjectVar(k);
+      push(k, meta ? meta.type : '', meta ? meta.desc : '本文件已使用');
+    });
+    VAR_CATALOG.forEach(function (v) { push(v.name, v.type, v.desc); });
+    return out.filter(function (it) {
+      return it.label.toUpperCase().indexOf(q) !== -1;
+    }).slice(0, 8);
+  }
+  function valueSuggestions(rowIndex, query) {
+    var nameEl = document.querySelector('#form [data-field="__cv-name"][data-row="' + rowIndex + '"]');
+    var typeEl = document.querySelector('#form [data-field="__cv-type"][data-row="' + rowIndex + '"]');
+    var name = nameEl ? nameEl.value.trim() : '';
+    var meta = findVar(name) || findProjectVar(name);
+    var type = (typeEl ? typeEl.value : '') || (meta ? meta.type : '');
+    var values = [];
+    if (meta && meta.values) values = meta.values.slice();
+    else if (type === 'BOOL') values = ['ON', 'OFF'];
+    var q = String(query || '').toLowerCase();
+    return values.filter(function (v) { return v.toLowerCase().indexOf(q) !== -1; })
+      .slice(0, 8)
+      .map(function (v) { return { label: v, desc: type === 'BOOL' ? '布尔值' : '建议取值' }; });
+  }
+  function highlight() {
+    var nodes = $('suggest').querySelectorAll('.sg');
+    for (var i = 0; i < nodes.length; i++) nodes[i].classList.toggle('act', i === suggest.idx);
+    if (suggest.idx >= 0 && nodes[suggest.idx]) nodes[suggest.idx].scrollIntoView({ block: 'nearest' });
+  }
+  function showSuggest(input, items, mode) {
+    if (!items.length) { hideSuggest(); return; }
+    suggest.open = true;
+    suggest.items = items;
+    suggest.idx = 0;
+    suggest.target = input;
+    suggest.mode = mode;
+    var box = $('suggest');
+    box.innerHTML = items.map(function (it, idx) {
+      return '<div class="sg" data-i="' + idx + '"><span class="n">' + esc(it.label) + '</span>' +
+        (it.type ? '<span class="t">' + esc(it.type) + '</span>' : '') +
+        (it.desc ? '<span class="d">' + esc(it.desc) + '</span>' : '') + '</div>';
+    }).join('');
+    box.classList.add('on');
+    var r = input.getBoundingClientRect();
+    var w = Math.max(300, Math.min(540, r.width));
+    box.style.width = w + 'px';
+    box.style.left = Math.max(4, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    var top = r.bottom + 2;
+    var h = box.offsetHeight;
+    if (top + h > window.innerHeight - 6) top = Math.max(6, r.top - h - 2);
+    box.style.top = top + 'px';
+    highlight();
+  }
+  function hideSuggest() {
+    if (!suggest.open) return;
+    suggest.open = false;
+    suggest.items = [];
+    suggest.idx = -1;
+    suggest.target = null;
+    var box = $('suggest');
+    box.classList.remove('on');
+    box.innerHTML = '';
+  }
+  function acceptSuggest(i) {
+    var item = suggest.items[i];
+    var input = suggest.target;
+    var mode = suggest.mode;
+    if (!item || !input) { hideSuggest(); return; }
+    input.value = item.label;
+    hideSuggest();
+    var p = cur();
+    if (!p) return;
+    beginEdit();
+    var rowIndex = Number(input.dataset.row);
+    if (mode === 'name') {
+      var typeEl = document.querySelector('#form [data-field="__cv-type"][data-row="' + rowIndex + '"]');
+      if (typeEl && !typeEl.value && item.type) typeEl.value = item.type;
+    }
+    syncCacheVar(p, rowIndex);
+    updateDerived();
+    commitDiff();
+    input.focus();
+  }
+  function maybeNameSuggest(input) {
+    var q = input.value.trim();
+    if (!q) { hideSuggest(); return; }
+    var items = nameSuggestions(q).filter(function (it) { return it.label !== q; });
+    if (!items.length) { hideSuggest(); return; }
+    showSuggest(input, items, 'name');
+  }
+  function maybeValueSuggest(input) {
+    showSuggest(input, valueSuggestions(Number(input.dataset.row), input.value), 'value');
+  }
+
+  /* ---------------- 表单骨架 ---------------- */
+
+  function row(label, control, hint) {
+    return '<div class="row"><label>' + label + '</label><div class="ctl">' + control +
+      (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div></div>';
+  }
+  function group(title, rows, tools) {
+    return '<section class="group"><header><h3>' + title + '</h3>' +
+      (tools || '') + '</header><div class="rows">' + rows.join('') + '</div></section>';
+  }
+  function txt(field, value, placeholder, disabled) {
+    return '<input type="text" data-field="' + field + '" value="' + esc(value) + '" placeholder="' +
+      esc(placeholder) + '"' + (disabled ? ' disabled' : '') + '>';
+  }
+  function num(field, value, placeholder) {
+    return '<input type="text" inputmode="numeric" data-field="' + field + '" value="' + esc(value) +
+      '" placeholder="' + esc(placeholder) + '">';
+  }
+  function chk(field, checked, label) {
+    return '<label class="chk"><input type="checkbox" data-field="' + field + '"' +
+      (checked ? ' checked' : '') + '> ' + label + '</label>';
+  }
+  function select(field, value, options, placeholder) {
+    var html = '<select data-field="' + field + '"><option value="">' +
+      esc(placeholder || '（未设置）') + '</option>';
+    options.forEach(function (o) {
+      html += '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>';
+    });
+    html += '</select>';
+    return html;
+  }
+  function withCurrent(options, value) {
+    if (value && options.indexOf(value) === -1) return options.concat([value]);
+    return options;
+  }
+
+  function cacheRows(p) {
+    var cv = p.cacheVariables || {};
+    var keys = Object.keys(cv);
+    if (!keys.length) {
+      return '<tr><td colspan="4" style="color:#7d7d7d;padding:6px 4px">还没有缓存变量</td></tr>';
+    }
+    return keys.map(function (k, i) {
+      var raw = cv[k];
+      var type = raw && typeof raw === 'object' ? (raw.type || '') : '';
+      var value = raw && typeof raw === 'object' ? raw.value : raw;
+      var typeOpts = VAR_TYPES.map(function (t) {
+        return '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + (t || '（无类型）') + '</option>';
+      }).join('');
+      return '<tr>' +
+        '<td><input type="text" data-field="__cv-name" data-row="' + i + '" value="' + esc(k) + '"></td>' +
+        '<td><select data-field="__cv-type" data-row="' + i + '">' + typeOpts + '</select></td>' +
+        '<td><input type="text" data-field="__cv-value" data-row="' + i + '" value="' + esc(value) + '"></td>' +
+        '<td class="x"><button data-field="__cv-del" data-row="' + i + '" title="删除">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function envRows(p) {
+    var env = p.environment || {};
+    var keys = Object.keys(env);
+    if (!keys.length) {
+      return '<tr><td colspan="3" style="color:#7d7d7d;padding:6px 4px">还没有环境变量</td></tr>';
+    }
+    return keys.map(function (k, i) {
+      return '<tr>' +
+        '<td><input type="text" data-field="__env-name" data-row="' + i + '" value="' + esc(k) + '"></td>' +
+        '<td><input type="text" data-field="__env-value" data-row="' + i + '" value="' + esc(env[k]) + '"></td>' +
+        '<td class="x"><button data-field="__env-del" data-row="' + i + '" title="删除">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function formHtml() {
+    var p = cur();
+    if (!p) {
+      return '<div class="empty">还没有预设<br><span>点击左侧「+ 配置预设」或「+ 构建预设」创建</span></div>';
+    }
+    var kind = state.sel.kind;
+    var parts = [];
+    parts.push('<div class="crumbs">CMakePresets.json <span>›</span> ' + esc(presetPath()) +
+      '<span class="ver">version ' + state.data.version + '</span></div>');
+    parts.push('<h2>' + esc(p.displayName || p.name || '未命名预设') +
+      (p.hidden ? ' <span class="badge">隐藏</span>' : '') + '</h2>');
+
+    // 基本信息
+    var inheritOptions = listOf(kind)
+      .filter(function (q) { return q !== p && q.name; })
+      .map(function (q) { return q.name; });
+    parts.push(group('基本信息', [
+      row('name', txt('name', p.name, '机器可读名称，用于 cmake --preset'),
+        '改名会同步更新引用它的 inherits / configurePreset'),
+      row('displayName', txt('displayName', p.displayName, '给人看的名字')),
+      row('description', txt('description', p.description, '一句话说明')),
+      row('hidden', chk('hidden', !!p.hidden, '隐藏（只能被继承，不能直接被使用）')),
+      row('inherits', select('inherits', p.inherits, inheritOptions, '（不继承）'),
+        '继承的字段灰显在下方「有效配置」中')
+    ]));
+
+    if (kind === 'configure') {
+      var isVS = /Visual Studio/i.test(p.generator || '');
+      parts.push(group('生成器与目录', [
+        row('generator', select('generator', p.generator, withCurrent(GENERATORS, p.generator), '（由 CMake 自动发现）'),
+          '列表来自本机 <code>cmake --help</code>（原型为静态列表）'),
+        row('architecture', select('architecture', p.architecture, ARCHS, '（默认）'),
+          isVS ? 'Visual Studio 生成器专用' : '仅 Visual Studio 生成器识别，非 VS 生成器请留空'),
+        row('binaryDir', txt('binaryDir', p.binaryDir, '${sourceDir}/build'),
+          '支持 ${sourceDir} / ${presetName} / $env{} 等宏'),
+        row('toolchainFile', txt('toolchainFile', p.toolchainFile, '（可选）')),
+        row('installDir', txt('installDir', p.installDir, '（可选）'))
+      ]));
+    } else {
+      parts.push(group('关联配置', [
+        row('configurePreset', select('configurePreset', p.configurePreset,
+          listOf('configure').map(function (q) { return q.name; }).filter(Boolean), '（必选）'),
+          '引用一个 configure 预设；改名会自动跟随'),
+        row('configuration', select('configuration', p.configuration, CFG_TYPES, '（不指定）'))
+      ]));
+      parts.push(group('构建参数', [
+        row('targets', txt('targets', (p.targets || []).join(', '), '可选，逗号分隔'),
+          '留空表示默认 target'),
+        row('jobs', num('jobs', p.jobs, '并行任务数')),
+        row('cleanFirst', chk('cleanFirst', !!p.cleanFirst, '构建前先清理'))
+      ]));
+    }
+
+    if (kind === 'configure') {
+      parts.push(group('缓存变量', [
+        '<table class="vars"><thead><tr><th style="width:44%">名称</th><th style="width:26%">类型</th><th>值</th><th></th></tr></thead><tbody>' +
+        cacheRows(p) + '</tbody></table>',
+        '<div class="addrow"><button data-field="__cv-add">+ 添加变量</button></div>'
+      ], '<span class="hint">输入 CMAKE_ 试试补全（' + VAR_CATALOG.length + ' 个变量）</span>'));
+    }
+
+    parts.push(group('环境变量', [
+      '<table class="vars"><thead><tr><th style="width:44%">名称</th><th>值</th><th></th></tr></thead><tbody>' +
+      envRows(p) + '</tbody></table>',
+      '<div class="addrow"><button data-field="__env-add">+ 添加变量</button></div>'
+    ]));
+
+    var canAdvanced = state.data.version >= 10;
+    parts.push(group('高级', [
+      row('graphviz', canAdvanced ? txt('graphviz', p.graphviz, '${sourceDir}/deps.dot')
+        : txt('graphviz', '', '需要 preset version ≥ 10', true),
+        canAdvanced ? '依赖图输出路径（v10 新增）' : '当前 version ' + state.data.version + ' 不支持该字段')
+    ], '<span class="hint">按 version 裁剪</span>'));
+
+    return parts.join('');
+  }
+
+  /* ---------------- 有效配置（含继承） ---------------- */
+
+  function resolveConfigure(p) {
+    var chain = [];
+    var seen = {};
+    var node = p;
+    while (node && !seen[node.name]) {
+      seen[node.name] = true;
+      chain.unshift(node);
+      node = node.inherits ? findIn('configure', node.inherits) : null;
+    }
+    var eff = {}, sources = {}, cv = {}, cvFrom = {};
+    chain.forEach(function (n) {
+      ['generator', 'architecture', 'toolset', 'binaryDir', 'installDir', 'toolchainFile'].forEach(function (k) {
+        if (n[k] !== undefined && n[k] !== '') { eff[k] = n[k]; sources[k] = n.name; }
+      });
+      var vars = n.cacheVariables || {};
+      Object.keys(vars).forEach(function (k) {
+        cv[k] = vars[k];
+        cvFrom[k] = n.name;
+      });
+    });
+    return { chain: chain, eff: eff, sources: sources, cv: cv, cvFrom: cvFrom };
+  }
+
+  function effRow(k, v, src) {
+    return '<div class="eff-row"><span class="k">' + esc(k) + '</span><span class="v">' +
+      (v === undefined || v === '' ? '<span style="color:#6d6d6d">（未设置）</span>' : esc(v)) +
+      '</span>' + (src ? '<span class="src">来自 ' + esc(src) + '</span>' : '') + '</div>';
+  }
+
+  function renderEffective() {
+    var host = $('effective');
+    var p = cur();
+    if (!p || !host) { if (host) host.innerHTML = ''; return; }
+    var rows = [];
+    if (state.sel.kind === 'configure') {
+      var r = resolveConfigure(p);
+      ['generator', 'architecture', 'binaryDir', 'toolchainFile', 'installDir'].forEach(function (k) {
+        rows.push(effRow(k, r.eff[k], r.sources[k] && r.sources[k] !== p.name ? r.sources[k] : ''));
+      });
+      Object.keys(r.cv).forEach(function (k) {
+        var v = r.cv[k];
+        if (v && typeof v === 'object') v = (v.type ? '[' + v.type + '] ' : '') + v.value;
+        rows.push(effRow('cache:' + k, v, r.cvFrom[k] !== p.name ? r.cvFrom[k] : ''));
+      });
+    } else {
+      var cfg = p.configurePreset ? findIn('configure', p.configurePreset) : null;
+      if (p.configurePreset) {
+        rows.push(effRow('configurePreset', p.configurePreset, cfg ? '' : '不存在'));
+        if (cfg) {
+          rows.push(effRow('generator', cfg.generator, cfg.name));
+          rows.push(effRow('architecture', cfg.architecture, cfg.name));
+          rows.push(effRow('binaryDir', cfg.binaryDir, cfg.name));
+        }
+      }
+      rows.push(effRow('configuration', p.configuration));
+    }
+    host.innerHTML = '<section class="group"><header><h3>有效配置（含继承）</h3>' +
+      '<span class="hint">' + (rows.length ? '只读预览' : '') + '</span></header><div class="rows"><div class="eff">' +
+      (rows.join('') || '<div style="color:#7d7d7d">没有可解析的字段</div>') + '</div></div></section>';
+  }
+
+  /* ---------------- 校验 ---------------- */
+
+  function computeIssues() {
+    var out = [];
+    var cfg = listOf('configure'), bld = listOf('build');
+    var cfgNames = {};
+
+    ['configure', 'build'].forEach(function (kind) {
+      var seen = {};
+      listOf(kind).forEach(function (p, i) {
+        var n = (p.name || '').trim();
+        if (!n) {
+          out.push({ level: 'error', msg: KINDS[kind] + ' #' + (i + 1) + ' 缺少 name', target: { kind: kind, index: i } });
+        } else if (seen[n] !== undefined) {
+          out.push({ level: 'error', msg: KINDS[kind] + '名称「' + n + '」重复', target: { kind: kind, index: i } });
+        } else {
+          seen[n] = i;
+          if (kind === 'configure') cfgNames[n] = true;
+        }
+      });
+    });
+
+    cfg.forEach(function (p, i) {
+      if (p.inherits === p.name) {
+        out.push({ level: 'error', msg: '「' + p.name + '」继承了自己', target: { kind: 'configure', index: i } });
+      }
+      if (p.inherits && !findIn('configure', p.inherits)) {
+        out.push({ level: 'error', msg: '「' + p.name + '」的 inherits 指向不存在的「' + p.inherits + '」', target: { kind: 'configure', index: i } });
+      }
+      if (!p.hidden) {
+        var v = state.data.version;
+        var lv = v < 3 ? 'error' : 'info';
+        var note = v < 3 ? '（v3 之前必填）' : '（CMake 将自动发现）';
+        if (!p.generator) out.push({ level: lv, msg: '「' + p.name + '」缺少 generator' + note, target: { kind: 'configure', index: i } });
+        if (!p.binaryDir) out.push({ level: lv, msg: '「' + p.name + '」缺少 binaryDir' + note, target: { kind: 'configure', index: i } });
+      }
+      if (p.generator && !/Visual Studio/i.test(p.generator) && p.cacheVariables &&
+          p.cacheVariables.CMAKE_GENERATOR_PLATFORM !== undefined) {
+        out.push({ level: 'warn', msg: '「' + p.name + '」使用 ' + p.generator + '，但设置了仅 VS 生成器识别的 CMAKE_GENERATOR_PLATFORM', target: { kind: 'configure', index: i } });
+      }
+      if (p.hidden) {
+        var used = cfg.some(function (q) { return q !== p && q.inherits === p.name; });
+        if (!used) out.push({ level: 'info', msg: '隐藏预设「' + p.name + '」没有被任何预设继承', target: { kind: 'configure', index: i } });
+      }
+    });
+
+    var byDir = {};
+    cfg.forEach(function (p) {
+      if (p.hidden || !p.binaryDir) return;
+      (byDir[p.binaryDir] = byDir[p.binaryDir] || []).push(p);
+    });
+    Object.keys(byDir).forEach(function (dir) {
+      if (byDir[dir].length > 1) {
+        out.push({ level: 'warn', msg: '多个可见预设共用 binaryDir「' + dir + '」：' + byDir[dir].map(function (p) { return p.name; }).join('、') + '（会互相覆盖缓存）' });
+      }
+    });
+
+    bld.forEach(function (p, i) {
+      if (p.inherits && !findIn('build', p.inherits)) {
+        out.push({ level: 'error', msg: '「' + p.name + '」的 inherits 指向不存在的「' + p.inherits + '」', target: { kind: 'build', index: i } });
+      }
+      if (!p.configurePreset) {
+        out.push({ level: 'error', msg: '「' + p.name + '」缺少 configurePreset', target: { kind: 'build', index: i } });
+      } else if (!cfgNames[p.configurePreset]) {
+        out.push({ level: 'error', msg: '「' + p.name + '」的 configurePreset 指向不存在的「' + p.configurePreset + '」', target: { kind: 'build', index: i } });
+      }
+    });
+
+    var rank = { error: 0, warn: 1, info: 2 };
+    out.sort(function (a, b) { return rank[a.level] - rank[b.level]; });
+    return out;
+  }
+
+  function renderIssues(issues) {
+    var host = $('issues');
+    $('issue-count').textContent = issues.length ? issues.length + ' 个' : '';
+    if (!issues.length) {
+      host.innerHTML = '<div class="issue ok"><span class="lv">✓</span><span>没有发现问题</span></div>';
+      return;
+    }
+    host.innerHTML = issues.map(function (it, i) {
+      var icon = it.level === 'error' ? '✕' : it.level === 'warn' ? '⚠' : 'i';
+      return '<div class="issue ' + it.level + '" data-i="' + i + '"><span class="lv">' + icon +
+        '</span><span>' + esc(it.msg) + '</span></div>';
+    }).join('');
+    host.querySelectorAll('.issue').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var it = issues[Number(el.dataset.i)];
+        if (it && it.target) selectPreset(it.target.kind, it.target.index);
+      });
+    });
+  }
+
+  /* ---------------- 渲染 ---------------- */
+
+  function renderTree() {
+    var q = state.search.toLowerCase();
+    var parts = [];
+    ['configure', 'build'].forEach(function (kind) {
+      var list = listOf(kind);
+      parts.push('<div class="tree-group">' + KINDS[kind] + ' <span class="count">' + list.length + '</span></div>');
+      var shown = 0;
+      list.forEach(function (p, i) {
+        var hay = ((p.name || '') + ' ' + (p.displayName || '')).toLowerCase();
+        if (q && hay.indexOf(q) === -1) return;
+        shown++;
+        var sel = state.sel.kind === kind && state.sel.index === i;
+        parts.push('<div class="tree-item' + (sel ? ' sel' : '') + '" data-kind="' + kind + '" data-index="' + i + '">' +
+          '<span class="dot ' + kind + '"></span>' +
+          '<span class="label">' + esc(p.displayName || p.name || '（未命名）') + '</span>' +
+          (p.hidden ? '<span class="badge">隐藏</span>' : '') +
+          '<span class="acts"><button data-act="dup" data-kind="' + kind + '" data-index="' + i + '" title="复制">⧉</button>' +
+          '<button data-act="del" data-kind="' + kind + '" data-index="' + i + '" title="删除">✕</button></span>' +
+          '</div>');
+      });
+      if (!shown) parts.push('<div style="color:#6d6d6d;padding:2px 16px 6px">（无匹配）</div>');
+    });
+    $('tree').innerHTML = parts.join('');
+  }
+
+  function renderJson() {
+    $('json').textContent = JSON.stringify(state.data, null, '\t');
+  }
+
+  function renderForm() {
+    hideSuggest();
+    $('form').innerHTML = formHtml();
+    renderEffective();
+  }
+
+  function markDirty() {
+    state.dirty = true;
+    $('dirty').classList.add('on');
+  }
+
+  function updateDerived() {
+    markDirty();
+    renderJson();
+    renderTree();
+    renderEffective();
+    renderIssues(computeIssues());
+  }
+
+  function renderAll() {
+    renderTree();
+    renderForm();
+    renderJson();
+    renderIssues(computeIssues());
+  }
+
+  function selectPreset(kind, index) {
+    state.sel = { kind: kind, index: index };
+    renderTree();
+    renderForm();
+  }
+
+  /* ---------------- 编辑操作 ---------------- */
+
+  function renamePreset(p, newName) {
+    var kind = state.sel.kind;
+    var old = p.name || '';
+    p.name = newName;
+    if (!old || old === newName || !newName) return;
+    var n = 0;
+    listOf(kind).forEach(function (q) {
+      if (q !== p && q.inherits === old) { q.inherits = newName; n++; }
+    });
+    if (kind === 'configure') {
+      listOf('build').forEach(function (q) {
+        if (q.configurePreset === old) { q.configurePreset = newName; n++; }
+      });
+    }
+    if (n) toast('已同步更新 ' + n + ' 处引用');
+  }
+
+  function syncCacheVar(p, rowIndex) {
+    var nameEl = document.querySelector('#form [data-field="__cv-name"][data-row="' + rowIndex + '"]');
+    var typeEl = document.querySelector('#form [data-field="__cv-type"][data-row="' + rowIndex + '"]');
+    var valEl = document.querySelector('#form [data-field="__cv-value"][data-row="' + rowIndex + '"]');
+    if (!nameEl || !valEl) return;
+    var entries = Object.keys(p.cacheVariables || {}).map(function (k) {
+      return [k, p.cacheVariables[k]];
+    });
+    if (rowIndex >= entries.length) return;
+    var name = nameEl.value.trim() || entries[rowIndex][0];
+    var type = typeEl ? typeEl.value : '';
+    var value = valEl.value;
+    entries[rowIndex] = [name, type ? { type: type, value: value } : value];
+    var obj = {};
+    entries.forEach(function (e) { obj[e[0]] = e[1]; });
+    p.cacheVariables = obj;
+  }
+
+  function syncEnv(p, rowIndex) {
+    var nameEl = document.querySelector('#form [data-field="__env-name"][data-row="' + rowIndex + '"]');
+    var valEl = document.querySelector('#form [data-field="__env-value"][data-row="' + rowIndex + '"]');
+    if (!nameEl || !valEl) return;
+    var entries = Object.keys(p.environment || {}).map(function (k) { return [k, p.environment[k]]; });
+    if (rowIndex >= entries.length) return;
+    var name = nameEl.value.trim() || entries[rowIndex][0];
+    entries[rowIndex] = [name, valEl.value];
+    var obj = {};
+    entries.forEach(function (e) { obj[e[0]] = e[1]; });
+    p.environment = obj;
+  }
+
+  function addPreset(kind) {
+    var list = listOf(kind);
+    var name = 'preset', i = 2;
+    while (list.some(function (p) { return p.name === name; })) name = 'preset' + (i++);
+    var p;
+    if (kind === 'configure') {
+      p = { name: name, generator: 'Ninja', binaryDir: '${sourceDir}/build/' + name };
+    } else {
+      p = { name: name, configuration: 'Debug' };
+      var first = listOf('configure')[0];
+      if (first && first.name) p.configurePreset = first.name;
+    }
+    list.push(p);
+    state.sel = { kind: kind, index: list.length - 1 };
+    markDirty();
+    renderAll();
+    commitOps([{ path: [ARRAYS[kind], list.length - 1], value: JSON.parse(JSON.stringify(p)) }]);
+    toast('已新增预设，可继续修改名称');
+  }
+
+  function duplicatePreset(kind, index) {
+    var list = listOf(kind);
+    var src = list[index];
+    if (!src) return;
+    var copy = JSON.parse(JSON.stringify(src));
+    var base = (src.name || 'preset') + '-copy';
+    var name = base, i = 2;
+    while (list.some(function (p) { return p.name === name; })) name = base + (i++);
+    copy.name = name;
+    copy.displayName = (src.displayName || src.name || '') + ' (副本)';
+    list.splice(index + 1, 0, copy);
+    state.sel = { kind: kind, index: index + 1 };
+    markDirty();
+    renderAll();
+    commitOps([{ path: [ARRAYS[kind], index + 1], value: JSON.parse(JSON.stringify(copy)) }]);
+    toast('已复制为 ' + name);
+  }
+
+  function deletePreset(kind, index) {
+    var list = listOf(kind);
+    var p = list[index];
+    if (!p) return;
+    var refs = [];
+    listOf(kind).forEach(function (q) {
+      if (q !== p && q.inherits === p.name) refs.push(KINDS[kind] + '「' + q.name + '」的 inherits');
+    });
+    if (kind === 'configure') {
+      listOf('build').forEach(function (q) {
+        if (q.configurePreset === p.name) refs.push('构建预设「' + q.name + '」的 configurePreset');
+      });
+    }
+    if (refs.length) {
+      var ok = window.confirm('「' + p.name + '」被以下位置引用：\n- ' + refs.join('\n- ') +
+        '\n\n删除会使引用变成断链，仍要继续吗？');
+      if (!ok) return;
+    }
+    list.splice(index, 1);
+    commitOps([{ path: [ARRAYS[kind], index], remove: true }]);
+    if (state.sel.kind === kind) {
+      state.sel.index = Math.max(0, Math.min(state.sel.index, list.length - 1));
+    }
+    markDirty();
+    renderAll();
+    toast('已删除「' + p.name + '」');
+  }
+
+  /* ---------------- 事件绑定 ---------------- */
+
+  function handleFieldInput(e) {
+    var el = e.target;
+    var field = el.dataset ? el.dataset.field : null;
+    if (!field) return;
+    var p = cur();
+    if (!p) return;
+
+    if (field === '__cv-name') {
+      syncCacheVar(p, Number(el.dataset.row));
+      updateDerived();
+      maybeNameSuggest(el);
+      return;
+    }
+    if (field === '__cv-value') {
+      syncCacheVar(p, Number(el.dataset.row));
+      updateDerived();
+      maybeValueSuggest(el);
+      return;
+    }
+    if (field === '__cv-type') {
+      hideSuggest();
+      syncCacheVar(p, Number(el.dataset.row));
+      updateDerived();
+      return;
+    }
+    if (field === '__env-name' || field === '__env-value') {
+      syncEnv(p, Number(el.dataset.row));
+      updateDerived();
+      return;
+    }
+    if (field === 'name') {
+      renamePreset(p, el.value);
+      updateDerived();
+      return;
+    }
+    if (field === 'targets') {
+      var arr = el.value.split(/[,\s]+/).filter(Boolean);
+      if (arr.length) p.targets = arr; else delete p.targets;
+      updateDerived();
+      return;
+    }
+    if (field === 'jobs') {
+      var v = el.value.trim();
+      if (v === '') delete p.jobs;
+      else p.jobs = Number(v) || v;
+      updateDerived();
+      return;
+    }
+    if (el.type === 'checkbox') {
+      if (el.checked) p[field] = true; else delete p[field];
+      updateDerived();
+      if (field === 'hidden') renderForm();
+      return;
+    }
+    var val = el.value.trim();
+    if (val === '') delete p[field]; else p[field] = val;
+    updateDerived();
+    if (field === 'generator') renderForm();
+  }
+
+  $('form').addEventListener('input', function (e) {
+    if (parseBroken) return;
+    if (!beginEdit()) return;
+    handleFieldInput(e);
+    commitDiff();
+  });
+
+  function handleFormClick(e) {
+    var btn = e.target.closest('button[data-field]');
+    if (!btn) return;
+    var p = cur();
+    if (!p) return;
+    var field = btn.dataset.field;
+    var rowIndex = Number(btn.dataset.row);
+
+    if (field === '__cv-add') {
+      var cv = p.cacheVariables || (p.cacheVariables = {});
+      var name = 'NEW_VAR', i = 2;
+      while (cv[name] !== undefined) name = 'NEW_VAR_' + (i++);
+      cv[name] = 'value';
+      renderForm();
+      updateDerived();
+      return;
+    }
+    if (field === '__cv-del') {
+      if (!p.cacheVariables) return;
+      var keys = Object.keys(p.cacheVariables);
+      delete p.cacheVariables[keys[rowIndex]];
+      if (!Object.keys(p.cacheVariables).length) delete p.cacheVariables;
+      renderForm();
+      updateDerived();
+      return;
+    }
+    if (field === '__env-add') {
+      var env = p.environment || (p.environment = {});
+      var en = 'NEW_ENV', j = 2;
+      while (env[en] !== undefined) en = 'NEW_ENV_' + (j++);
+      env[en] = '';
+      renderForm();
+      updateDerived();
+      return;
+    }
+    if (field === '__env-del') {
+      if (!p.environment) return;
+      var ekeys = Object.keys(p.environment);
+      delete p.environment[ekeys[rowIndex]];
+      if (!Object.keys(p.environment).length) delete p.environment;
+      renderForm();
+      updateDerived();
+    }
+  }
+
+  $('form').addEventListener('click', function (e) {
+    if (parseBroken) return;
+    if (!beginEdit()) return;
+    handleFormClick(e);
+    commitDiff();
+  });
+
+  $('tree').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (btn) {
+      var kind = btn.dataset.kind;
+      var index = Number(btn.dataset.index);
+      if (btn.dataset.act === 'dup') duplicatePreset(kind, index);
+      else deletePreset(kind, index);
+      return;
+    }
+    var item = e.target.closest('.tree-item');
+    if (item) selectPreset(item.dataset.kind, Number(item.dataset.index));
+  });
+
+  $('search').addEventListener('input', function (e) {
+    state.search = e.target.value;
+    renderTree();
+  });
+
+  $('add-configure').addEventListener('click', function () { addPreset('configure'); });
+  $('add-build').addEventListener('click', function () { addPreset('build'); });
+
+  $('version').addEventListener('change', function (e) {
+    if (parseBroken) return;
+    beginEdit();
+    state.data.version = Number(e.target.value);
+    renderForm();
+    updateDerived();
+    toast('已切换 preset 版本到 ' + state.data.version + '（字段按版本裁剪）');
+    commitDiff();
+  });
+
+  $('btn-validate').addEventListener('click', function () {
+    var issues = computeIssues();
+    renderIssues(issues);
+    $('issues-wrap').scrollIntoView({ block: 'nearest' });
+    toast(issues.length ? '校验完成：' + issues.length + ' 个问题' : '校验通过，没有问题');
+  });
+
+  $('btn-save').addEventListener('click', function () {
+    flush();
+    vscode.postMessage({ type: 'save' });
+  });
+
+  $('btn-json').addEventListener('click', function () {
+    flush();
+    vscode.postMessage({ type: 'openText' });
+  });
+
+  $('form').addEventListener('keydown', function (e) {
+    if (!suggest.open || e.target !== suggest.target) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      var n = suggest.items.length;
+      if (!n) return;
+      suggest.idx = (suggest.idx + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+      highlight();
+    } else if (e.key === 'Enter') {
+      if (suggest.idx >= 0) { e.preventDefault(); acceptSuggest(suggest.idx); }
+    } else if (e.key === 'Escape') {
+      hideSuggest();
+    }
+  });
+
+  $('form').addEventListener('focusout', function (e) {
+    if (suggest.open && e.target === suggest.target) setTimeout(hideSuggest, 120);
+  });
+
+  $('suggest').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  $('suggest').addEventListener('click', function (e) {
+    var it = e.target.closest('.sg');
+    if (it) acceptSuggest(Number(it.dataset.i));
+  });
+  $('suggest').addEventListener('mouseover', function (e) {
+    var it = e.target.closest('.sg');
+    if (it) { suggest.idx = Number(it.dataset.i); highlight(); }
+  });
+
+  $('editor').addEventListener('scroll', hideSuggest);
+  window.addEventListener('resize', hideSuggest);
+
+  renderAll();
+  vscode.postMessage({ type: 'ready' });
+})();
+</script>
+</body>
+</html>

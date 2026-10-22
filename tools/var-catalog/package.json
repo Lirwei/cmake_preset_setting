@@ -1,0 +1,18 @@
+{
+  "name": "cmake-var-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Parse local CMake variable docs into a searchable catalog and a local completion service",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node index.mjs build",
+    "project": "node index.mjs project",
+    "serve": "node index.mjs serve",
+    "test": "node index.mjs selftest && node test/smoke.mjs && node test/prototype-smoke.mjs",
+    "smoke": "node test/smoke.mjs",
+    "smoke:ui": "node test/prototype-smoke.mjs"
+  }
+}

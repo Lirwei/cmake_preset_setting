@@ -1,0 +1,7 @@
+# 统一换行，避免 Windows/macOS 之间反复改行尾
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.vsix binary
+*.ico binary

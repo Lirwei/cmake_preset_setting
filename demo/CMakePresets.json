@@ -1,0 +1,51 @@
+{
+	"version": 7,
+	"configurePresets": [
+		{
+			"name": "VS2022",
+			"displayName": "Visual Studio 2022",
+			"generator": "Visual Studio 17 2022",
+			"architecture": "x64",
+			"binaryDir": "${sourceDir}/build",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchain/msvc/toolchain.cmake",
+				"CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+				"LIBRARIES_DIR": "${sourceDir}"
+			}
+		},
+		{
+			"name": "linux",
+			"displayName": "gcc",
+			"generator": "Unix Makefiles",
+			"binaryDir": "${sourceDir}/linux_build",
+			"cacheVariables": {
+				"CMAKE_GENERATOR_PLATFORM": "x64",
+				"APP_LANGUAGE": "CH",
+				"CMAKE_TOOLCHAIN_FILE": "${sourceDir}/toolchain/msvc/toolchain.cmake",
+				"LIBRARIES_DIR": "${sourceDir}"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "Release",
+			"displayName": "Release",
+			"configuration": "Release",
+			"configurePreset": "VS2022"
+		},
+		{
+			"name": "RelWithDebInfo",
+			"description": "RelWithDebInfo",
+			"displayName": "RelWithDebInfo",
+			"configuration": "RelWithDebInfo",
+			"configurePreset": "VS2022"
+		},
+		{
+			"name": "Debug",
+			"description": "Debug",
+			"displayName": "Debug",
+			"configuration": "Debug",
+			"configurePreset": "VS2022"
+		}
+	]
+}

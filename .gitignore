@@ -1,0 +1,15 @@
+# 依赖与构建产物
+node_modules/
+extension/node_modules/
+extension/dist/
+extension/out/
+extension/build/
+extension/media/catalog.json
+tools/var-catalog/dist/
+
+# 本机环境 / 临时文件
+.dsh-acl-recovery/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
