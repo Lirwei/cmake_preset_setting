@@ -144,12 +144,25 @@ test('解析 cmake --help 的生成器列表', () => {
     '',
     'Generators',
     '',
-    '* Visual Studio 17 2022        = Generates Visual Studio 2022 project files.',
-    '* Ninja                        = Generates Ninja files.',
-    '* Unix Makefiles               = Generates Unix makefiles.',
+    'The following generators are available on this platform (* marks default):',
+    '  Visual Studio 17 2022        = Generates Visual Studio 2022 project files.',
+    '                                 Use -A option to specify architecture.',
+    '* Ninja                        = Generates build.ninja files.',
+    '  CodeBlocks - NMake Makefiles JOM',
+    '                               = Generates CodeBlocks project files',
+    '                                 (deprecated).',
+    '  Unix Makefiles               = Generates standard UNIX makefiles.',
     '',
+    'Options',
+    '',
+    '  -S <path-to-source>          = Explicitly specify a source directory.',
   ].join('\n');
   assert.deepEqual(parseGenerators(help), ['Visual Studio 17 2022', 'Ninja', 'Unix Makefiles']);
+});
+
+test('默认生成器之外的条目也要能解析（非 * 开头）', () => {
+  const help = ['Generators', '', '  Ninja Multi-Config           = Generates build-<Config>.ninja files.'].join('\n');
+  assert.deepEqual(parseGenerators(help), ['Ninja Multi-Config']);
 });
 
 test('解析不到时回退到内置列表', () => {

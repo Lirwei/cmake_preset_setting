@@ -15,6 +15,7 @@
 
 - 预设树：配置 / 构建分组，复制、删除、新建；
 - 表单：name / displayName / description / hidden / inherits / generator / architecture / binaryDir / toolchainFile / installDir；
+  （generator 下拉来自本机 `cmake --help` 的 Generators 段，已过滤 deprecated；`cmake` 不在 PATH 时用内置兜底列表）
 - 缓存变量与环境变量：表格编辑，**名称补全**（本机 CMake 变量目录，带说明与类型），选中的已知变量会**自动补类型**；`BOOL` 给 `ON/OFF`，常见枚举给建议值；
 - 有效配置预览：展开 `inherits` 链，标出每个值来自哪个预设；
 - 校验：重名、断链引用、缺 generator、`binaryDir` 冲突、`CMAKE_GENERATOR_PLATFORM` 误用等；
