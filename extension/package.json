@@ -2,7 +2,7 @@
   "name": "cmake-presets-editor",
   "displayName": "CMake Presets Editor",
   "description": "在 VS Code 里用表单编辑 CMakePresets.json：变量补全、继承生效值、引用校验",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "local",
   "license": "MIT",
   "engines": {

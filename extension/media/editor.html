@@ -5,114 +5,322 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CMake Presets 编辑器</title>
 <style>
-  :root{
-    --bg:#1e1e1e; --side:#252526; --panel:#1e1e1e; --border:#333;
-    --text:#d4d4d4; --muted:#9d9d9d; --accent:#007acc; --sel:#094771;
-    --input:#3c3c3c; --btn:#3a3d41; --err:#f14c4c; --warn:#cca700; --info:#3794ff;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);overflow:hidden;
-       font:13px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
-  #app{display:flex;flex-direction:column;height:100%}
-  #topbar{display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--side);
-          border-bottom:1px solid var(--border);flex:0 0 auto}
-  #topbar .file{font-weight:600;letter-spacing:.2px}
-  #topbar .note{color:var(--muted);font-size:12px}
-  #topbar .spacer{flex:1}
-  button{font:inherit;color:#ccc;background:var(--btn);border:1px solid #4b4b4b;border-radius:3px;
-         padding:3px 9px;cursor:pointer;white-space:nowrap}
-  button:hover{background:#45494e}
-  button.primary{background:#0e639c;border-color:#0e639c;color:#fff}
-  button.primary:hover{background:#1177bb}
-  input,select{font:inherit;color:#ddd;background:var(--input);border:1px solid var(--input);
-               border-radius:2px;padding:3px 6px;width:100%}
-  input:focus,select:focus{outline:none;border-color:var(--accent)}
-  input:disabled,select:disabled{opacity:.5;cursor:not-allowed}
-  input[type=checkbox]{width:auto}
-  #main{flex:1;display:grid;grid-template-columns:272px minmax(420px,1fr) minmax(360px,440px);min-height:0}
-  #sidebar{background:var(--side);border-right:1px solid #2b2b2b;display:flex;flex-direction:column;min-height:0}
-  .side-head{padding:8px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #2b2b2b}
-  .side-head input{flex:1 1 100%;margin-bottom:2px}
-  .side-head button{flex:1}
-  #tree{flex:1;overflow:auto;padding:4px 0}
-  .tree-group{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
-              padding:10px 12px 4px;display:flex;align-items:center;gap:6px}
-  .tree-group .count{background:#3a3d41;border-radius:8px;padding:0 6px;font-size:10px;color:#bbb}
-  .tree-item{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 16px;cursor:pointer;
-             position:relative;border-left:2px solid transparent}
-  .tree-item:hover{background:#2a2d2e}
-  .tree-item.sel{background:var(--sel);border-left-color:var(--accent)}
-  .tree-item .label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
-  .dot.configure{background:#4ec9b0}
-  .dot.build{background:#dcdcaa}
-  .badge{font-size:10px;background:#4d4d4d;color:#ccc;border-radius:3px;padding:0 4px}
-  .tree-item .acts{display:none;gap:2px}
-  .tree-item:hover .acts,.tree-item.sel .acts{display:flex}
-  .tree-item .acts button{padding:0 4px;background:transparent;border:none;color:#bbb;font-size:12px}
-  .tree-item .acts button:hover{color:#fff}
-  .side-foot{padding:8px 12px;border-top:1px solid #2b2b2b;color:#6d6d6d;font-size:11px}
-  #editor{overflow:auto;min-height:0;padding:0 0 40px}
-  #right{display:flex;flex-direction:column;min-height:0;border-left:1px solid #2b2b2b}
-  .panel-title{padding:7px 12px;background:var(--side);border-bottom:1px solid var(--border);
-               color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
-               display:flex;justify-content:space-between;align-items:center}
-  #json{flex:1;min-height:0;margin:0;padding:10px 14px;overflow:auto;font:12px/1.5 Consolas,"Cascadia Mono",monospace;
-        color:#cecece;background:#181818;white-space:pre;tab-size:4}
-  #json.flash{animation:flash .9s ease}
-  @keyframes flash{0%{background:#1d3557}100%{background:#181818}}
-  #issues-wrap{border-top:1px solid var(--border);max-height:42%;display:flex;flex-direction:column}
-  #issues{overflow:auto;padding:6px 0}
-  .issue{display:flex;gap:8px;padding:5px 12px;cursor:pointer;line-height:1.45}
-  .issue:hover{background:#2a2d2e}
-  .issue .lv{flex:0 0 auto;width:14px;text-align:center;font-weight:700}
-  .issue.error .lv{color:var(--err)}
-  .issue.warn .lv{color:var(--warn)}
-  .issue.info .lv{color:var(--info)}
-  .issue.ok{color:#89d185;cursor:default}
-  .crumbs{padding:12px 20px 0;color:var(--muted);font-size:12px;display:flex;gap:8px;align-items:center}
-  .crumbs .ver{margin-left:auto;background:#3a3d41;border-radius:3px;padding:1px 7px;color:#bbb}
-  #form h2{margin:6px 20px 14px;font-size:17px;font-weight:600;display:flex;gap:8px;align-items:center}
-  .group{margin:0 20px 16px;border:1px solid #2d2d2d;border-radius:4px;overflow:hidden;background:#232323}
-  .group>header{display:flex;align-items:center;justify-content:space-between;
-                padding:6px 12px;background:#2a2a2a;border-bottom:1px solid #2d2d2d}
-  .group>header h3{margin:0;font-size:12px;font-weight:600;color:#c8c8c8;letter-spacing:.3px}
-  .rows{padding:12px}
-  .row{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:start;margin-bottom:9px}
-  .row:last-child{margin-bottom:0}
-  .row>label{color:#b9b9b9;padding-top:3px;font-size:12px}
-  .hint{color:#7d7d7d;font-size:11px;margin-top:3px}
-  .hint.strong{color:var(--warn)}
-  table.vars{width:100%;border-collapse:collapse}
-  table.vars th{text-align:left;font-weight:500;color:#8f8f8f;font-size:11px;padding:0 4px 5px}
-  table.vars td{padding:2px 4px}
-  table.vars td.x{width:26px;text-align:center}
-  table.vars td.x button{background:transparent;border:none;color:#888;padding:0 4px;font-size:13px}
-  table.vars td.x button:hover{color:var(--err)}
-  .addrow{margin-top:8px}
-  .empty{padding:60px 30px;text-align:center;color:var(--muted)}
-  .empty span{font-size:12px;color:#707070}
-  .eff{display:grid;grid-template-columns:1fr;gap:2px}
-  .eff-row{display:flex;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px dashed #2f2f2f}
-  .eff-row:last-child{border-bottom:none}
-  .eff-row .k{width:150px;color:#8fbcd4;font-family:Consolas,monospace;font-size:12px}
-  .eff-row .v{flex:1;font-family:Consolas,monospace;font-size:12px;word-break:break-all}
-  .eff-row .src{color:#7a7a7a;font-size:11px;white-space:nowrap}
-  #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:#3a3d41;
-         color:#fff;padding:7px 14px;border-radius:4px;opacity:0;pointer-events:none;
-         transition:.18s;box-shadow:0 3px 10px rgba(0,0,0,.4);z-index:9}
-  #toast.show{opacity:1;transform:translate(-50%,0)}
-  .dirty{width:7px;height:7px;border-radius:50%;background:#e2c08d;display:none}
-  .dirty.on{display:inline-block}
-  #suggest{position:fixed;z-index:20;display:none;background:#252526;border:1px solid #4b4b4b;
-           border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.55);max-height:280px;overflow:auto}
-  #suggest.on{display:block}
-  #suggest .sg{display:flex;align-items:baseline;gap:8px;padding:4px 10px;cursor:pointer}
-  #suggest .sg.act{background:var(--sel)}
-  #suggest .sg .n{font-family:Consolas,monospace;font-size:12px;color:#dcdcaa;white-space:nowrap}
-  #suggest .sg .t{font-size:10px;color:#4ec9b0;border:1px solid #3f5f57;border-radius:3px;padding:0 4px;white-space:nowrap}
-  #suggest .sg .d{flex:1;color:#9d9d9d;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 颜色全部走 VS Code 主题变量，括号里是深色主题的近似回退值（浏览器直接打开原型时用） */
+:root {
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --side: var(--vscode-sideBar-background, #252526);
+  --widget: var(--vscode-editorWidget-background, #232323);
+  --border: var(--vscode-panel-border, #333333);
+  --text: var(--vscode-foreground, #d4d4d4);
+  --muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --accent: var(--vscode-focusBorder, #007acc);
+  --sel: var(--vscode-list-activeSelectionBackground, #094771);
+  --sel-fg: var(--vscode-list-activeSelectionForeground, #ffffff);
+  --hover: var(--vscode-list-hoverBackground, #2a2d2e);
+  --input: var(--vscode-input-background, #3c3c3c);
+  --input-fg: var(--vscode-input-foreground, #dddddd);
+  --input-border: var(--vscode-input-border, #3c3c3c);
+  --btn: var(--vscode-button-secondaryBackground, #3a3d41);
+  --btn-fg: var(--vscode-button-secondaryForeground, #cccccc);
+  --btn-hover: var(--vscode-button-secondaryHoverBackground, #45494e);
+  --primary: var(--vscode-button-background, #0e639c);
+  --primary-fg: var(--vscode-button-foreground, #ffffff);
+  --primary-hover: var(--vscode-button-hoverBackground, #1177bb);
+  --err: var(--vscode-errorForeground, #f14c4c);
+  --warn: var(--vscode-editorWarning-foreground, #cca700);
+  --info: var(--vscode-editorInfo-foreground, #3794ff);
+  --ok: var(--vscode-testing-iconPassed, #89d185);
+  --code: var(--vscode-textPreformat-foreground, #dcdcaa);
+  --type: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+  --badge-bg: var(--vscode-badge-background, #4d4d4d);
+  --badge-fg: var(--vscode-badge-foreground, #cccccc);
+  --code-bg: var(--vscode-textCodeBlock-background, #181818);
+  --suggest-bg: var(--vscode-editorSuggestWidget-background, #252526);
+  --suggest-border: var(--vscode-editorSuggestWidget-border, #4b4b4b);
+  --suggest-sel: var(--vscode-editorSuggestWidget-selectedBackground, #094771);
+  --scrollbar: var(--vscode-scrollbarSlider-background, #424242);
+  --scrollbar-hover: var(--vscode-scrollbarSlider-hoverBackground, #4f4f4f);
+  --font-ui: var(--vscode-font-family, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif);
+  --font-mono: var(--vscode-editor-font-family, Consolas, "Cascadia Mono", monospace);
+}
+
+body.vscode-light { color-scheme: light; }
+body.vscode-dark,
+body.vscode-high-contrast { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.55;
+}
+#app { display: flex; flex-direction: column; height: 100%; }
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--side);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+#topbar .file { font-weight: 600; letter-spacing: .2px; }
+#topbar .note { color: var(--err); font-size: 12px; }
+#topbar .spacer { flex: 1; }
+
+button {
+  font: inherit;
+  color: var(--btn-fg);
+  background: var(--btn);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 3px;
+  padding: 3px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { background: var(--btn-hover); }
+button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+button.primary:hover { background: var(--primary-hover); }
+
+input, select {
+  font: inherit;
+  color: var(--input-fg);
+  background: var(--input);
+  border: 1px solid var(--input-border);
+  border-radius: 2px;
+  padding: 3px 6px;
+  width: 100%;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+/* 原生 checkbox 在 webview 里不跟主题走，这里自己画 */
+input[type=checkbox] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--vscode-checkbox-border, var(--input-border));
+  background: var(--input);
+  position: relative;
+  cursor: pointer;
+  vertical-align: -2px;
+  padding: 0;
+}
+input[type=checkbox]:checked {
+  background: var(--vscode-checkbox-background, var(--primary));
+  border-color: var(--vscode-checkbox-border, var(--primary));
+}
+input[type=checkbox]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-checkbox-foreground, #ffffff);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+#main { flex: 1; display: grid; grid-template-columns: 272px minmax(420px, 1fr) minmax(360px, 440px); min-height: 0; }
+#sidebar {
+  background: var(--side);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.side-head { padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); }
+.side-head input { flex: 1 1 100%; margin-bottom: 2px; }
+.side-head button { flex: 1; }
+#tree { flex: 1; overflow: auto; padding: 4px 0; }
+.tree-group {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  padding: 10px 12px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tree-group .count { background: var(--badge-bg); border-radius: 8px; padding: 0 6px; font-size: 10px; color: var(--badge-fg); }
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 16px;
+  cursor: pointer;
+  position: relative;
+  border-left: 2px solid transparent;
+  color: var(--text);
+}
+.tree-item:hover { background: var(--hover); }
+.tree-item.sel { background: var(--sel); color: var(--sel-fg); border-left-color: var(--accent); }
+.tree-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.dot.configure { background: var(--type); }
+.dot.build { background: var(--vscode-charts-yellow, #cca700); }
+.badge { font-size: 10px; background: var(--badge-bg); color: var(--badge-fg); border-radius: 3px; padding: 0 4px; }
+.tree-item .acts { display: none; gap: 2px; }
+.tree-item:hover .acts, .tree-item.sel .acts { display: flex; }
+.tree-item .acts button { padding: 0 4px; background: transparent; border: none; color: inherit; font-size: 12px; opacity: .8; }
+.tree-item .acts button:hover { opacity: 1; }
+.side-foot { padding: 8px 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+
+#editor { overflow: auto; min-height: 0; padding: 0 0 40px; }
+#right { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); }
+.panel-title {
+  padding: 7px 12px;
+  background: var(--side);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#json {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--vscode-editor-font-size, 12px);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--code-bg);
+  white-space: pre;
+  tab-size: 4;
+}
+#json.flash { animation: flash .9s ease; }
+@keyframes flash {
+  0% { box-shadow: inset 0 0 0 2px var(--accent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+
+#issues-wrap { border-top: 1px solid var(--border); max-height: 42%; display: flex; flex-direction: column; }
+#issues { overflow: auto; padding: 6px 0; }
+.issue { display: flex; gap: 8px; padding: 5px 12px; cursor: pointer; line-height: 1.45; }
+.issue:hover { background: var(--hover); }
+.issue .lv { flex: 0 0 auto; width: 14px; text-align: center; font-weight: 700; }
+.issue.error .lv { color: var(--err); }
+.issue.warn .lv { color: var(--warn); }
+.issue.info .lv { color: var(--info); }
+.issue.ok { color: var(--ok); cursor: default; }
+
+.crumbs { padding: 12px 20px 0; color: var(--muted); font-size: 12px; display: flex; gap: 8px; align-items: center; }
+.crumbs .ver { margin-left: auto; background: var(--badge-bg); color: var(--badge-fg); border-radius: 3px; padding: 1px 7px; }
+
+#form h2 { margin: 6px 20px 14px; font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: center; color: var(--text); }
+.group { margin: 0 20px 16px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: var(--widget); }
+.group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--vscode-sideBarSectionHeader-background, var(--side));
+  border-bottom: 1px solid var(--border);
+}
+.group > header h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: .3px; }
+.rows { padding: 12px; }
+.row { display: grid; grid-template-columns: 104px 1fr; gap: 10px; align-items: start; margin-bottom: 9px; }
+.row:last-child { margin-bottom: 0; }
+.row > label { color: var(--text); opacity: .85; padding-top: 3px; font-size: 12px; }
+.hint { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.hint.strong { color: var(--warn); }
+.hint code { font-family: var(--font-mono); font-size: 11px; }
+
+table.vars { width: 100%; border-collapse: collapse; }
+table.vars th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 0 4px 5px; }
+table.vars td { padding: 2px 4px; }
+table.vars td.x { width: 26px; text-align: center; }
+table.vars td.x button { background: transparent; border: none; color: var(--muted); padding: 0 4px; font-size: 13px; }
+table.vars td.x button:hover { color: var(--err); }
+.addrow { margin-top: 8px; }
+
+.empty { padding: 60px 30px; text-align: center; color: var(--muted); }
+.empty span { font-size: 12px; color: var(--muted); opacity: .8; }
+
+.eff { display: grid; grid-template-columns: 1fr; gap: 2px; }
+.eff-row { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; border-bottom: 1px dashed var(--border); }
+.eff-row:last-child { border-bottom: none; }
+.eff-row .k { width: 150px; color: var(--vscode-symbolIcon-variableForeground, var(--info)); font-family: var(--font-mono); font-size: 12px; }
+.eff-row .v { flex: 1; font-family: var(--font-mono); font-size: 12px; word-break: break-all; }
+.eff-row .src { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translate(-50%, 20px);
+  background: var(--vscode-notifications-background, var(--widget));
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 7px 14px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: .18s;
+  box-shadow: 0 3px 10px var(--vscode-widget-shadow, rgba(0, 0, 0, .4));
+  z-index: 9;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--vscode-gitDecoration-modifiedResourceForeground, #e2c08d); display: none; }
+.dirty.on { display: inline-block; }
+
+#suggest {
+  position: fixed;
+  z-index: 20;
+  display: none;
+  background: var(--suggest-bg);
+  border: 1px solid var(--suggest-border);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px var(--vscode-widget-shadow, rgba(0, 0, 0, .55));
+  max-height: 280px;
+  overflow: auto;
+}
+#suggest.on { display: block; }
+#suggest .sg {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  color: var(--vscode-editorSuggestWidget-foreground, var(--text));
+}
+#suggest .sg.act { background: var(--suggest-sel); }
+#suggest .sg .n { font-family: var(--font-mono); font-size: 12px; color: inherit; white-space: nowrap; }
+#suggest .sg .t {
+  font-size: 10px;
+  color: var(--type);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+  opacity: .9;
+}
+#suggest .sg .d { flex: 1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 选中行整体用主题的 selectedForeground，避免深色文字压在选中背景上看不清 */
+#suggest .sg.act .n,
+#suggest .sg.act .d,
+#suggest .sg.act .t { color: var(--vscode-editorSuggestWidget-selectedForeground, #ffffff); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 </style>
 </head>
 <body>

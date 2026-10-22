@@ -19,7 +19,8 @@
 - 有效配置预览：展开 `inherits` 链，标出每个值来自哪个预设；
 - 校验：重名、断链引用、缺 generator、`binaryDir` 冲突、`CMAKE_GENERATOR_PLATFORM` 误用等；
 - 改 `name` 会自动改写引用它的 `inherits` / `configurePreset`；
-- JSON 语法错误时自动只读，并提示切回文本编辑器修复。
+- JSON 语法错误时自动只读，并提示切回文本编辑器修复；
+- **界面跟随 VS Code 主题**：所有颜色取自 `--vscode-*` 主题变量，浅色 / 深色 / 高对比度都能用（见下方截图）。
 
 ## 编辑方式（为什么不会打乱格式）
 
@@ -32,7 +33,6 @@
 ## 变量目录
 
 扩展内置 `media/catalog.json`，由仓库里的 `tools/var-catalog` 从**本机 CMake 安装目录**的官方变量文档生成（默认 CMake 4.4 下有 839 条）。重新生成：
-
 ```bash
 node tools/var-catalog/index.mjs build
 cd extension && node esbuild.mjs   # 会把 variables.json 拷进 media/catalog.json

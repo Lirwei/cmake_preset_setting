@@ -153,6 +153,10 @@ function replaceOnce(html, from, to, label) {
 
 let html = fs.readFileSync(source, 'utf8');
 
+// 样式以 scripts/editor.css 为准（主题变量在这里维护），内联进 webview
+const css = fs.readFileSync(path.join(__dirname, 'editor.css'), 'utf8');
+html = html.replace(/<style>[\s\S]*?<\/style>/, '<style>\n' + css + '\n</style>');
+
 html = replaceOnce(html, '<title>CMake Presets 编辑器 · 交互原型</title>', '<title>CMake Presets 编辑器</title>', 'title');
 html = replaceOnce(html, '\n<script src="variables.js"></script>', '', 'variables.js');
 html = replaceOnce(html, '<span class="file">CMakePresets.json</span>', '<span class="file" id="file-name">CMakePresets.json</span>', 'file-name');
