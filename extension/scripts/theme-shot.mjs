@@ -127,7 +127,9 @@ setTimeout(function () {
       { name: 'CMAKE_BUILD_WITH_INSTALL_RPATH', type: 'BOOL', desc: 'Use the install path for the RPATH', values: ['ON','OFF'], hot: false },
       { name: 'CMAKE_BUILD_WITH_INSTALL_NAME_DIR', type: 'BOOL', desc: 'Whether to use INSTALL_NAME_DIR on targets', values: ['ON','OFF'], hot: false }
     ],
-    generators: ['Visual Studio 17 2022','Ninja','Unix Makefiles']
+    generators: ['Visual Studio 17 2022','Ninja','Unix Makefiles'],
+    projectGenerators: ['Visual Studio 17 2022'],
+    projectBuildDirs: [{ dir: 'build', generator: 'Visual Studio 17 2022' }]
   } }));
   function poke() {
     var el = document.querySelector('#form [data-field="__cv-name"]');

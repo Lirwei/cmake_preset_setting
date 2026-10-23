@@ -137,7 +137,15 @@ test('provider：init → apply → 文档最小修改', async () => {
 
     const provider = new PresetsEditorProvider(
       { extensionUri: { fsPath: EXT_ROOT }, extensionPath: EXT_ROOT },
-      { catalog: [{ name: 'CMAKE_BUILD_TYPE', type: 'STRING', desc: 'x', values: ['Debug'], hot: true }], generators: ['Ninja'], cmakeVersion: '4.4' }
+      {
+        catalog: [{ name: 'CMAKE_BUILD_TYPE', type: 'STRING', desc: 'x', values: ['Debug'], hot: true }],
+        generators: ['Ninja'],
+        cmakeVersion: '4.4',
+        getProjectInfo: () => ({
+          generators: ['Visual Studio 17 2022'],
+          buildDirs: [{ dir: 'build', generator: 'Visual Studio 17 2022' }],
+        }),
+      }
     );
 
     await provider.resolveCustomTextEditor(document, panel);
@@ -154,6 +162,8 @@ test('provider：init → apply → 文档最小修改', async () => {
     assert.equal(init.fileName, 'CMakePresets.json');
     assert.equal(init.catalog.length, 1);
     assert.deepEqual(init.generators, ['Ninja']);
+    assert.deepEqual(init.projectGenerators, ['Visual Studio 17 2022']);
+    assert.equal(init.projectBuildDirs[0].dir, 'build');
 
     // 3. apply：改 binaryDir
     await state.handler({

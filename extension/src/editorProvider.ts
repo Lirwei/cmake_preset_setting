@@ -4,11 +4,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { computeReplacement, detectFormatting, Op } from './core/edits';
 import { CatalogEntry } from './core/catalog';
+import { ProjectInfo } from './projectInfo';
+import { GeneratorPlatform } from './core/generators';
 
 export interface ProviderDeps {
   catalog: CatalogEntry[];
   generators: string[];
+  generator_platforms?: Record<string, GeneratorPlatform>;
   cmakeVersion: string | null;
+  getProjectInfo: () => ProjectInfo;
 }
 
 interface ApplyMessage {
@@ -18,6 +22,15 @@ interface ApplyMessage {
 
 export class PresetsEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'cmakePresets.editor';
+
+  private static readonly panels = new Set<vscode.WebviewPanel>();
+
+  /** 向所有打开的可视化编辑器广播消息（例如项目构建目录变化）。 */
+  public static broadcast(message: unknown): void {
+    for (const panel of PresetsEditorProvider.panels) {
+      void panel.webview.postMessage(message);
+    }
+  }
 
   private applying = 0;
   private htmlCache: string | null = null;
@@ -42,6 +55,7 @@ export class PresetsEditorProvider implements vscode.CustomTextEditorProvider {
     const mediaRoot = vscode.Uri.joinPath(this.context.extensionUri, 'media');
     panel.webview.options = { enableScripts: true, localResourceRoots: [mediaRoot] };
     panel.webview.html = this.getHtml(panel.webview);
+    PresetsEditorProvider.panels.add(panel);
 
     const uri = document.uri.toString();
     const post = (message: unknown): void => {
@@ -49,6 +63,7 @@ export class PresetsEditorProvider implements vscode.CustomTextEditorProvider {
     };
 
     const sendInit = (): void => {
+      const project = this.deps.getProjectInfo();
       post({
         type: 'init',
         text: document.getText(),
@@ -57,7 +72,10 @@ export class PresetsEditorProvider implements vscode.CustomTextEditorProvider {
         fileName: path.basename(document.fileName),
         catalog: this.deps.catalog,
         generators: this.deps.generators,
+        generator_platforms: this.deps.generator_platforms ?? {},
         cmakeVersion: this.deps.cmakeVersion,
+        projectGenerators: project.generators,
+        projectBuildDirs: project.buildDirs,
       });
     };
 
@@ -103,6 +121,7 @@ export class PresetsEditorProvider implements vscode.CustomTextEditorProvider {
     ];
 
     panel.onDidDispose(() => {
+      PresetsEditorProvider.panels.delete(panel);
       for (const disposable of disposables) disposable.dispose();
     }, null, disposables);
   }

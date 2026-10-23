@@ -63,3 +63,29 @@ export function parseGenerators(help: string): string[] {
   const unique = [...new Set(names)];
   return unique.length > 0 ? unique : FALLBACK_GENERATORS;
 }
+
+export interface GeneratorPlatform {
+  platform_support: boolean;
+  supported_platforms?: string[];
+}
+
+/** capabilities 缺失或过旧时，界面仍可使用生成器名称兜底。 */
+export function parse_generator_platforms(capabilities: string): Record<string, GeneratorPlatform> {
+  try {
+    const parsed: unknown = JSON.parse(capabilities);
+    if (!parsed || typeof parsed !== 'object' || !('generators' in parsed) || !Array.isArray(parsed.generators)) return {};
+    const platforms: Record<string, GeneratorPlatform> = Object.create(null);
+    for (const generator of parsed.generators) {
+      if (!generator || typeof generator.name !== 'string' || typeof generator.platformSupport !== 'boolean') continue;
+      platforms[generator.name] = {
+        platform_support: generator.platformSupport,
+        ...(Array.isArray(generator.supportedPlatforms)
+          ? { supported_platforms: generator.supportedPlatforms.filter((platform: unknown): platform is string => typeof platform === 'string') }
+          : {}),
+      };
+    }
+    return platforms;
+  } catch {
+    return {};
+  }
+}

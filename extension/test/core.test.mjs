@@ -5,7 +5,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { computeReplacement, minimalReplace, detectFormatting } = require('../out/core/edits.js');
 const { diffModel } = require('../out/core/diff.js');
-const { parseGenerators } = require('../out/core/generators.js');
+const { parseGenerators, parse_generator_platforms } = require('../out/core/generators.js');
+const { readCacheEntry } = require('../out/core/cmakeCache.js');
 
 const TAB_FORMAT = { insertSpaces: false, tabSize: 1 };
 
@@ -167,4 +168,38 @@ test('默认生成器之外的条目也要能解析（非 * 开头）', () => {
 
 test('解析不到时回退到内置列表', () => {
   assert.ok(parseGenerators('nothing here').length > 0);
+});
+
+test('读取 CMakeCache.txt 里的生成器信息', () => {
+  const text = [
+    '# This is the CMakeCache file.',
+    '//Name of generator.',
+    'CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022',
+    '//Platform name.',
+    'CMAKE_GENERATOR_PLATFORM:INTERNAL=x64',
+    'CMAKE_BUILD_TYPE:STRING=Debug',
+  ].join('\n');
+  assert.equal(readCacheEntry(text, 'CMAKE_GENERATOR'), 'Visual Studio 17 2022');
+  assert.equal(readCacheEntry(text, 'CMAKE_GENERATOR_PLATFORM'), 'x64');
+  assert.equal(readCacheEntry(text, 'CMAKE_TOOLCHAIN_FILE'), undefined);
+});
+
+test('生成器能力：读取每个生成器的平台支持及架构候选', () => {
+  const platforms = parse_generator_platforms(JSON.stringify({ generators: [
+    { name: 'Visual Studio 17 2022', platformSupport: true, supportedPlatforms: ['x64', 'ARM64EC', 1] },
+    { name: 'Ninja', platformSupport: false },
+    { name: 'Green Hills MULTI', platformSupport: true },
+    { name: 'invalid', platformSupport: 'true' },
+    null,
+  ] }));
+  assert.deepEqual(platforms['Visual Studio 17 2022'], { platform_support: true, supported_platforms: ['x64', 'ARM64EC'] });
+  assert.deepEqual(platforms.Ninja, { platform_support: false });
+  assert.deepEqual(platforms['Green Hills MULTI'], { platform_support: true });
+  assert.equal(platforms.invalid, undefined);
+});
+
+test('生成器能力：不可用或格式异常时回退，不影响生成器列表', () => {
+  for (const capabilities of ['', 'invalid', 'null', '{}', '{"generators": {}}']) {
+    assert.deepEqual(parse_generator_platforms(capabilities), {});
+  }
 });

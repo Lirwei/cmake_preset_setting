@@ -81,10 +81,26 @@ function makeVscodeStub() {
       onDidSaveTextDocument() {
         return { dispose() {} };
       },
-      applyEdit() {
-        return Promise.resolve(true);
+      createFileSystemWatcher() {
+        const disposable = { dispose() {} };
+        return {
+          onDidCreate: () => disposable,
+          onDidChange: () => disposable,
+          onDidDelete: () => disposable,
+          dispose() {},
+        };
       },
-      fs: { stat: () => Promise.reject(new Error('nope')), writeFile: () => Promise.resolve() },
+      getWorkspaceFolder() {
+        return undefined;
+      },
+      asRelativePath(p) {
+        return String(p);
+      },
+      fs: {
+        stat: () => Promise.reject(new Error('nope')),
+        writeFile: () => Promise.resolve(),
+        readFile: () => Promise.resolve(Buffer.from('')),
+      },
     },
   };
   return { vscode, state };

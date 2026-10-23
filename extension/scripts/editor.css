@@ -231,6 +231,20 @@ input[type=checkbox]:checked::after {
 .hint { color: var(--muted); font-size: 11px; margin-top: 3px; }
 .hint.strong { color: var(--warn); }
 .hint code { font-family: var(--font-mono); font-size: 11px; }
+.architecture-conflict {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--err));
+  border-radius: 3px;
+  background: var(--vscode-inputValidation-errorBackground, var(--widget));
+  color: var(--vscode-inputValidation-errorForeground, var(--text));
+  overflow-wrap: anywhere;
+}
+.architecture-conflict strong { color: var(--err); }
+.architecture-conflict p { margin: 6px 0; font-size: 12px; }
+.architecture-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--err); }
+
 
 table.vars { width: 100%; border-collapse: collapse; }
 table.vars th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 0 4px 5px; }

@@ -238,6 +238,20 @@ input[type=checkbox]:checked::after {
 .hint { color: var(--muted); font-size: 11px; margin-top: 3px; }
 .hint.strong { color: var(--warn); }
 .hint code { font-family: var(--font-mono); font-size: 11px; }
+.architecture-conflict {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--err));
+  border-radius: 3px;
+  background: var(--vscode-inputValidation-errorBackground, var(--widget));
+  color: var(--vscode-inputValidation-errorForeground, var(--text));
+  overflow-wrap: anywhere;
+}
+.architecture-conflict strong { color: var(--err); }
+.architecture-conflict p { margin: 6px 0; font-size: 12px; }
+.architecture-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--err); }
+
 
 table.vars { width: 100%; border-collapse: collapse; }
 table.vars th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 0 4px 5px; }
@@ -375,6 +389,7 @@ table.vars td.x button:hover { color: var(--err); }
     'Visual Studio 18 2026', 'Visual Studio 17 2022', 'Visual Studio 16 2019',
     'Ninja', 'Ninja Multi-Config', 'Unix Makefiles', 'MinGW Makefiles'
   ];
+  var generator_platforms = {};
   var ARCHS = ['x64', 'Win32', 'ARM', 'ARM64'];
   var CFG_TYPES = ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel'];
   var VAR_TYPES = ['', 'BOOL', 'STRING', 'PATH', 'FILEPATH', 'INTERNAL'];
@@ -462,6 +477,8 @@ table.vars td.x button:hover { color: var(--err); }
   var flushTimer = null;
   var beforeSnapshot = null;
   var parseBroken = false;
+  state.projectGenerators = state.projectGenerators || [];
+  state.projectBuildDirs = state.projectBuildDirs || [];
 
   function diffModel(before, after, base) {
     base = base || [];
@@ -558,6 +575,9 @@ table.vars td.x button:hover { color: var(--err); }
     }
     if (Array.isArray(msg.catalog) && msg.catalog.length) VAR_CATALOG = msg.catalog;
     if (Array.isArray(msg.generators) && msg.generators.length) GENERATORS = msg.generators;
+    if (msg.generator_platforms) generator_platforms = msg.generator_platforms;
+    if (Array.isArray(msg.projectGenerators)) state.projectGenerators = msg.projectGenerators;
+    if (Array.isArray(msg.projectBuildDirs)) state.projectBuildDirs = msg.projectBuildDirs;
 
     var list = listOf(state.sel.kind);
     if (state.sel.index >= list.length) state.sel.index = Math.max(0, list.length - 1);
@@ -575,6 +595,11 @@ table.vars td.x button:hover { color: var(--err); }
   window.addEventListener('message', function (event) {
     var msg = event.data || {};
     if (msg.type === 'init' || msg.type === 'update') applyDocument(msg);
+    else if (msg.type === 'project') {
+      state.projectGenerators = msg.projectGenerators || [];
+      state.projectBuildDirs = msg.projectBuildDirs || [];
+      if (!parseBroken) renderForm();
+    }
     else if (msg.type === 'state') document.getElementById('dirty').classList.toggle('on', !!msg.isDirty);
     else if (msg.type === 'error') toast('操作失败：' + msg.message);
   });
@@ -757,7 +782,9 @@ table.vars td.x button:hover { color: var(--err); }
     var html = '<select data-field="' + field + '"><option value="">' +
       esc(placeholder || '（未设置）') + '</option>';
     options.forEach(function (o) {
-      html += '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>';
+      var val = (o && typeof o === 'object') ? o.value : o;
+      var label = (o && typeof o === 'object') ? o.label : o;
+      html += '<option value="' + esc(val) + '"' + (val === value ? ' selected' : '') + '>' + esc(label) + '</option>';
     });
     html += '</select>';
     return html;
@@ -765,6 +792,19 @@ table.vars td.x button:hover { color: var(--err); }
   function withCurrent(options, value) {
     if (value && options.indexOf(value) === -1) return options.concat([value]);
     return options;
+  }
+
+  function generator_platform(generator_name) {
+    return generator_platforms[generator_name] || {
+      platform_support: /^(Visual Studio |Green Hills MULTI$)/i.test(generator_name || ''),
+      supported_platforms: /^Visual Studio /i.test(generator_name || '') ? ARCHS : undefined
+    };
+  }
+  function architecture_value(architecture) {
+    return architecture && typeof architecture === 'object' ? architecture.value : architecture;
+  }
+  function architecture_external(architecture) {
+    return !!architecture && typeof architecture === 'object' && architecture.strategy === 'external';
   }
 
   function cacheRows(p) {
@@ -826,22 +866,71 @@ table.vars td.x button:hover { color: var(--err); }
       row('displayName', txt('displayName', p.displayName, '给人看的名字')),
       row('description', txt('description', p.description, '一句话说明')),
       row('hidden', chk('hidden', !!p.hidden, '隐藏（只能被继承，不能直接被使用）')),
-      row('inherits', select('inherits', p.inherits, inheritOptions, '（不继承）'),
+      row('inherits', select('inherits', Array.isArray(p.inherits) ? p.inherits.join(', ') : p.inherits,
+        withCurrent(inheritOptions, Array.isArray(p.inherits) ? p.inherits.join(', ') : p.inherits), '（不继承）'),
         '继承的字段灰显在下方「有效配置」中')
     ]));
 
     if (kind === 'configure') {
-      var isVS = /Visual Studio/i.test(p.generator || '');
-      parts.push(group('生成器与目录', [
-        row('generator', select('generator', p.generator, withCurrent(GENERATORS, p.generator), '（由 CMake 自动发现）'),
-          '列表来自本机 <code>cmake --help</code>（原型为静态列表）'),
-        row('architecture', select('architecture', p.architecture, ARCHS, '（默认）'),
-          isVS ? 'Visual Studio 生成器专用' : '仅 Visual Studio 生成器识别，非 VS 生成器请留空'),
-        row('binaryDir', txt('binaryDir', p.binaryDir, '${sourceDir}/build'),
-          '支持 ${sourceDir} / ${presetName} / $env{} 等宏'),
-        row('toolchainFile', txt('toolchainFile', p.toolchainFile, '（可选）')),
-        row('installDir', txt('installDir', p.installDir, '（可选）'))
-      ]));
+      var resolved_configure = resolveConfigure(p);
+      var generator_name = resolved_configure.eff.generator || '';
+      var platform_info = generator_platform(generator_name);
+      var project_generators = state.projectGenerators || [];
+      var generator_options = withCurrent(GENERATORS, p.generator).map(function (generator_name) {
+        var generator_label = generator_name;
+        if (project_generators.indexOf(generator_name) >= 0) generator_label += '（项目已用）';
+        if (GENERATORS.indexOf(generator_name) < 0) generator_label += '（当前 CMake 未列出）';
+        return { value: generator_name, label: generator_label };
+      });
+      var generator_hint = '来自本机 <code>cmake --help</code>，共 ' + GENERATORS.length + ' 项；仅表示 CMake 支持，不代表对应工具链已安装';
+      var build_dirs = state.projectBuildDirs || [];
+      if (build_dirs.length) {
+        generator_hint += '；构建目录：' + build_dirs.map(function (build_dir) {
+          return esc(build_dir.dir) + ' → ' + esc(build_dir.generator);
+        }).join('，');
+      }
+      var generator_placeholder = !p.generator && generator_name ? '（继承：' + generator_name + '）' : '（由 CMake 自动发现）';
+      var genRows = [
+        row('generator', select('generator', p.generator, generator_options, generator_placeholder), generator_hint)
+      ];
+      var effective_architecture = resolved_configure.eff.architecture;
+      var architecture_suppressed = architecture_external(effective_architecture) && !architecture_value(effective_architecture);
+      if (platform_info.platform_support || (effective_architecture !== undefined && !architecture_suppressed)) {
+        var current_architecture = architecture_value(p.architecture);
+        var inherited_architecture = p.architecture === undefined ? architecture_value(effective_architecture) : '';
+        var architecture_placeholder = inherited_architecture ? '（继承：' + inherited_architecture + '）' : '（由 CMake 决定）';
+        var architecture_options = platform_info.supported_platforms || (/^Visual Studio /i.test(generator_name) ? ARCHS : undefined);
+        var architecture_control = architecture_options && architecture_options.length
+          ? select('architecture', current_architecture, withCurrent(architecture_options, current_architecture), architecture_placeholder)
+          : txt('architecture', current_architecture, architecture_placeholder);
+        var architecture_hint = architecture_external(effective_architecture)
+          ? '仅供 IDE 准备编译环境；CMake 不接收此架构设置'
+          : platform_info.platform_support ? '跟随有效 generator（含继承），对应 -A'
+          : '尚未指定 generator；请先选择生成器';
+        if (generator_name && !platform_info.platform_support && !architecture_external(effective_architecture)) {
+          architecture_control = architecture_control.replace('data-field="architecture"',
+            'data-field="architecture" aria-invalid="true" aria-describedby="architecture-conflict"');
+          var architecture_source = resolved_configure.sources.architecture;
+          architecture_control += '<div class="architecture-conflict" id="architecture-conflict" role="alert">' +
+            '<strong>架构设置与生成器不兼容</strong>' +
+            '<p><code>' + esc(generator_name) + '</code> 不接受单独的架构参数。保留当前设置会导致 CMake 配置失败。</p>' +
+            (architecture_source && architecture_source !== p.name
+              ? '<p>此架构继承自「' + esc(architecture_source) + '」。以下操作只覆盖当前预设，不修改父预设。</p>' : '') +
+            '<div class="architecture-actions">' +
+            '<button type="button" class="primary" data-field="__architecture_clear">清空架构配置</button>' +
+            '<button type="button" data-field="__architecture_external">仅供 IDE 使用</button></div>' +
+            '<p class="hint">通常选择「清空架构配置」；如果需要 IDE 按此架构准备编译环境，请选择「仅供 IDE 使用」。</p></div>';
+          architecture_hint = '';
+        } else if (platform_info.platform_support && architecture_external(effective_architecture)) {
+          architecture_control += '<div class="architecture-actions"><button type="button" data-field="__architecture_set">改由 CMake 指定架构</button></div>';
+        }
+        genRows.push(row('architecture', architecture_control, architecture_hint));
+      }
+      genRows.push(row('binaryDir', txt('binaryDir', p.binaryDir, '${sourceDir}/build'),
+        '支持 ${sourceDir} / ${presetName} / $env{} 等宏'));
+      genRows.push(row('toolchainFile', txt('toolchainFile', p.toolchainFile, '（可选）')));
+      genRows.push(row('installDir', txt('installDir', p.installDir, '（可选）')));
+      parts.push(group('生成器与目录', genRows));
     } else {
       parts.push(group('关联配置', [
         row('configurePreset', select('configurePreset', p.configurePreset,
@@ -884,31 +973,34 @@ table.vars td.x button:hover { color: var(--err); }
   /* ---------------- 有效配置（含继承） ---------------- */
 
   function resolveConfigure(p) {
-    var chain = [];
-    var seen = {};
-    var node = p;
-    while (node && !seen[node.name]) {
+    var chain = [], seen = Object.create(null);
+    var eff = {}, sources = {}, cv = {}, cvFrom = {};
+    function visit_configure(node) {
+      if (!node || seen[node.name]) return;
       seen[node.name] = true;
       chain.unshift(node);
-      node = node.inherits ? findIn('configure', node.inherits) : null;
+      ['generator', 'architecture', 'toolset', 'binaryDir', 'installDir', 'toolchainFile'].forEach(function (field_name) {
+        if (eff[field_name] === undefined && node[field_name] !== undefined && node[field_name] !== '') {
+          eff[field_name] = node[field_name];
+          sources[field_name] = node.name;
+        }
+      });
+      Object.keys(node.cacheVariables || {}).forEach(function (variable_name) {
+        if (!Object.prototype.hasOwnProperty.call(cv, variable_name)) {
+          cv[variable_name] = node.cacheVariables[variable_name];
+          cvFrom[variable_name] = node.name;
+        }
+      });
+      var parent_names = Array.isArray(node.inherits) ? node.inherits : node.inherits ? [node.inherits] : [];
+      parent_names.forEach(function (parent_name) { visit_configure(findIn('configure', parent_name)); });
     }
-    var eff = {}, sources = {}, cv = {}, cvFrom = {};
-    chain.forEach(function (n) {
-      ['generator', 'architecture', 'toolset', 'binaryDir', 'installDir', 'toolchainFile'].forEach(function (k) {
-        if (n[k] !== undefined && n[k] !== '') { eff[k] = n[k]; sources[k] = n.name; }
-      });
-      var vars = n.cacheVariables || {};
-      Object.keys(vars).forEach(function (k) {
-        cv[k] = vars[k];
-        cvFrom[k] = n.name;
-      });
-    });
+    visit_configure(p);
     return { chain: chain, eff: eff, sources: sources, cv: cv, cvFrom: cvFrom };
   }
 
   function effRow(k, v, src) {
     return '<div class="eff-row"><span class="k">' + esc(k) + '</span><span class="v">' +
-      (v === undefined || v === '' ? '<span style="color:#6d6d6d">（未设置）</span>' : esc(v)) +
+      (v === undefined || v === '' ? '<span style="color:#6d6d6d">（未设置）</span>' : esc(v && typeof v === 'object' ? JSON.stringify(v) : v)) +
       '</span>' + (src ? '<span class="src">来自 ' + esc(src) + '</span>' : '') + '</div>';
   }
 
@@ -970,19 +1062,26 @@ table.vars td.x button:hover { color: var(--err); }
       if (p.inherits === p.name) {
         out.push({ level: 'error', msg: '「' + p.name + '」继承了自己', target: { kind: 'configure', index: i } });
       }
-      if (p.inherits && !findIn('configure', p.inherits)) {
+      if (p.inherits && (Array.isArray(p.inherits) ? p.inherits : [p.inherits]).some(function (parent_name) { return !findIn('configure', parent_name); })) {
         out.push({ level: 'error', msg: '「' + p.name + '」的 inherits 指向不存在的「' + p.inherits + '」', target: { kind: 'configure', index: i } });
       }
       if (!p.hidden) {
         var v = state.data.version;
         var lv = v < 3 ? 'error' : 'info';
         var note = v < 3 ? '（v3 之前必填）' : '（CMake 将自动发现）';
-        if (!p.generator) out.push({ level: lv, msg: '「' + p.name + '」缺少 generator' + note, target: { kind: 'configure', index: i } });
-        if (!p.binaryDir) out.push({ level: lv, msg: '「' + p.name + '」缺少 binaryDir' + note, target: { kind: 'configure', index: i } });
+        if (!resolveConfigure(p).eff.generator) out.push({ level: lv, msg: '「' + p.name + '」缺少 generator' + note, target: { kind: 'configure', index: i } });
+        if (!resolveConfigure(p).eff.binaryDir) out.push({ level: lv, msg: '「' + p.name + '」缺少 binaryDir' + note, target: { kind: 'configure', index: i } });
       }
-      if (p.generator && !/Visual Studio/i.test(p.generator) && p.cacheVariables &&
-          p.cacheVariables.CMAKE_GENERATOR_PLATFORM !== undefined) {
-        out.push({ level: 'warn', msg: '「' + p.name + '」使用 ' + p.generator + '，但设置了仅 VS 生成器识别的 CMAKE_GENERATOR_PLATFORM', target: { kind: 'configure', index: i } });
+      var effective_configure = resolveConfigure(p);
+      var generator_name = effective_configure.eff.generator;
+      var platform_info = generator_platform(generator_name);
+      if (generator_name && !platform_info.platform_support &&
+          effective_configure.cv.CMAKE_GENERATOR_PLATFORM !== undefined) {
+        out.push({ level: 'warn', msg: '「' + p.name + '」使用 ' + generator_name + '，不支持 CMAKE_GENERATOR_PLATFORM', target: { kind: 'configure', index: i } });
+      }
+      if (generator_name && !platform_info.platform_support && effective_configure.eff.architecture !== undefined &&
+          !architecture_external(effective_configure.eff.architecture)) {
+        out.push({ level: 'error', msg: '「' + p.name + '」的架构设置与 ' + generator_name + ' 不兼容，配置会失败。请在表单中选择「清空架构配置」或「仅供 IDE 使用」', target: { kind: 'configure', index: i } });
       }
       if (p.hidden) {
         var used = cfg.some(function (q) { return q !== p && q.inherits === p.name; });
@@ -1273,9 +1372,14 @@ table.vars td.x button:hover { color: var(--err); }
       return;
     }
     var val = el.value.trim();
-    if (val === '') delete p[field]; else p[field] = val;
+    if (field === 'architecture' && val !== '' && p.architecture && typeof p.architecture === 'object') {
+      p.architecture.value = val;
+    } else if (field === 'architecture' && val !== '' && p.architecture === undefined &&
+        typeof resolveConfigure(p).eff.architecture === 'object') {
+      p.architecture = Object.assign({}, resolveConfigure(p).eff.architecture, { value: val });
+    } else if (val === '') delete p[field]; else p[field] = val;
     updateDerived();
-    if (field === 'generator') renderForm();
+    if (field === 'generator' || field === 'inherits' || (field === 'architecture' && val === '')) renderForm();
   }
 
   $('form').addEventListener('input', function (e) {
@@ -1292,6 +1396,32 @@ table.vars td.x button:hover { color: var(--err); }
     if (!p) return;
     var field = btn.dataset.field;
     var rowIndex = Number(btn.dataset.row);
+
+    if (field === '__architecture_clear') {
+      var inherited_preset = Object.assign({}, p);
+      delete inherited_preset.architecture;
+      var parent_architecture = resolveConfigure(inherited_preset).eff.architecture;
+      if (parent_architecture !== undefined) {
+        // 显式覆盖继承的值和策略，避免删除本地字段后再次继承不兼容的架构。
+        p.architecture = { value: '', strategy: 'external' };
+      } else {
+        delete p.architecture;
+      }
+      renderForm();
+      updateDerived();
+      toast(parent_architecture !== undefined ? '已在当前预设停用继承的架构，父预设未修改' : '已清空架构配置，交由生成器决定');
+      return;
+    }
+    if (field === '__architecture_external' || field === '__architecture_set') {
+      var effective_architecture = resolveConfigure(p).eff.architecture;
+      p.architecture = effective_architecture && typeof effective_architecture === 'object'
+        ? Object.assign({}, effective_architecture) : { value: effective_architecture };
+      p.architecture.strategy = field === '__architecture_external' ? 'external' : 'set';
+      renderForm();
+      updateDerived();
+      toast(field === '__architecture_external' ? '已保留架构供 IDE 使用，不再传给 CMake' : '已改由 CMake 指定架构');
+      return;
+    }
 
     if (field === '__cv-add') {
       var cv = p.cacheVariables || (p.cacheVariables = {});
