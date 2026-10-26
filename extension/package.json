@@ -5,6 +5,11 @@
   "version": "0.1.4",
   "publisher": "local",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lirwei/cmake_preset_setting.git",
+    "directory": "extension"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -75,14 +80,20 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "compile": "node node_modules/typescript/bin/tsc -p .",
-    "package": "node esbuild.mjs && node -e \"require('fs').mkdirSync('build',{recursive:true})\" && vsce package --no-dependencies --allow-missing-repository --out build/cmake-presets-editor.vsix",
+    "package": "node esbuild.mjs && node -e \"require('fs').mkdirSync('build',{recursive:true})\" && vsce package --no-dependencies --out build/cmake-presets-editor.vsix",
     "test": "node node_modules/typescript/bin/tsc -p . && node --test test/*.test.mjs"
+  },
+  "overrides": {
+    "@azure/identity": "4.13.0",
+    "@azure/msal-node": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.2.1",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.0",
     "jsonc-parser": "^3.3.1",
     "typescript": "^5.7.2"
   }

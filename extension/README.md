@@ -57,8 +57,10 @@ cd extension && node esbuild.mjs   # 会把 variables.json 拷进 media/catalog.
 npm install
 npm run build          # esbuild → dist/extension.js，并拷贝变量目录
 npm run watch          # 开发时增量构建
-npm test               # 20 个用例：核心编辑 + webview 端到端 + 扩展激活
+npm test               # 37 个用例：核心编辑 + webview 端到端 + 扩展激活
 npm run package        # 产出 build/cmake-presets-editor.vsix
 ```
+
+发布流程会执行 `npm audit`。构建工具的 `@azure/identity` 暂时固定为未受当前认证依赖漏洞影响的 `4.13.0`，其 MSAL 依赖使用已修复边界检查的 `uuid@11.1.1`；上游依赖修复后可移除这些 override。该依赖不随 VSIX 分发。
 
 调试：VS Code 打开本目录，按 `F5`（需要 `.vscode/launch.json`，见仓库说明），或直接安装 VSIX。

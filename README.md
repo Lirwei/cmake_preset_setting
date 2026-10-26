@@ -23,12 +23,23 @@ start docs\prototype\presets-editor.html
 # 3. 扩展：构建 / 测试 / 打包安装
 cd extension
 npm.cmd install
-npm.cmd test                                # 20 个用例
+npm.cmd test                                # 37 个用例
 npm.cmd run package
 code --install-extension build\cmake-presets-editor.vsix --force
 ```
 
 装好后在 VS Code 里**重载窗口**，右键 `CMakePresets.json` → **打开方式…** → **CMake Presets 编辑器**。
+
+## 下载安装
+
+无需自行构建：在仓库的 [Releases](https://github.com/Lirwei/cmake_preset_setting/releases) 下载带版本号的 `.vsix`，然后在 VS Code 中选择「从 VSIX 安装…」。扩展市场尚未上架。
+
+## 发版流程
+
+- 保持 `extension/package.json` 与 `extension/package-lock.json` 的版本一致。
+- 添加 `docs/releases/v<版本>.md`，提交后推送对应的 `v<版本>` 标签。
+- `.github/workflows/release.yml` 会安装锁定依赖、生成变量目录、构建、运行全部测试，再发布附带 VSIX 和 SHA-256 的 GitHub Release；标签版本与包版本不一致时会停止。
+- 扩展市场发布需要正式 Publisher ID 及对应发布认证，不能直接使用本地测试的 `local` 身份上架。
 
 ## 它是怎么改文件的
 
